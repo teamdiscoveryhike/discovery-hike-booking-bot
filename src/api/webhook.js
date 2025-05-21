@@ -97,4 +97,4 @@ async function sendTrekList(userId) {
   ], "🌄 Select a Trek");
 }
 
-module.exports = router;
+export default router;;
