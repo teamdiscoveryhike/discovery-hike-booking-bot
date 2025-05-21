@@ -1,58 +1,100 @@
-// src/api/webhook.js
-import express from 'express';
-import { sendWhatsAppMessage } from '../services/whatsapp.js';
-
+const express = require("express");
 const router = express.Router();
+const {
+  startSession,
+  isSessionActive,
+  getCurrentStep,
+  saveResponse,
+  isSessionComplete,
+  getSessionData,
+  endSession
+} = require("../services/sessionManager");
 
-// 1️⃣ Verification endpoint (GET)
-router.get('/', (req, res) => {
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;   // must match .env
+const {
+  sendText,
+  sendButtons,
+  sendList
+} = require("../services/whatsapp");
 
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+router.post("/", async (req, res) => {
+  const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  const from = message?.from;
+  const text = message?.text?.body;
+  const buttonReply = message?.interactive?.button_reply?.id;
+  const listReply = message?.interactive?.list_reply?.id;
 
-  // Log everything for debugging
-  console.log('🔍 Incoming verification request:', {
-    mode,
-    token,
-    challenge,
-    expectedToken: VERIFY_TOKEN,
-  });
+  if (!text && !buttonReply && !listReply) return res.sendStatus(200);
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ Webhook verified successfully');
-    return res.status(200).send(challenge);
+  if (text?.toLowerCase() === "book trek") {
+    startSession(from);
+    return await sendTrekList(from), res.sendStatus(200);
   }
 
-  console.log('❌ Webhook verification failed');
-  res.sendStatus(403);
+  if (!isSessionActive(from)) return res.sendStatus(200);
+
+  const step = getCurrentStep(from);
+  const input = buttonReply || listReply || text;
+
+  saveResponse(from, input);
+
+  if (isSessionComplete(from)) {
+    const data = getSessionData(from);
+    endSession(from);
+
+    const summary = `🧾 *Booking Summary:*\n${Object.entries(data)
+      .map(([k, v]) => `• *${k}*: ${v}`)
+      .join("\n")}`;
+
+    await sendText(from, summary);
+    return await sendButtons(from, "✅ Confirm booking?", [
+      { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
+      { type: "reply", reply: { id: "confirm_no", title: "No" } }
+    ]);
+  }
+
+  const nextStep = getCurrentStep(from);
+  await askNextQuestion(from, nextStep);
+  res.sendStatus(200);
 });
 
-// 2️⃣ Message handler (POST)
-router.post('/', async (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const change = entry?.changes?.[0];
-    const message = change?.value?.messages?.[0];
+async function askNextQuestion(userId, step) {
+  if (step === "trekName") {
+    return sendTrekList(userId);
+  }
+  if (step === "trekDate") {
+    return sendButtons(userId, "📅 Choose a date:", [
+      { type: "reply", reply: { id: "today", title: "Today" } },
+      { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
+      { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
+    ]);
+  }
+  if (step === "sharingType") {
+    return sendButtons(userId, "How would the group prefer to stay?", [
+      { type: "reply", reply: { id: "private", title: "Private" } },
+      { type: "reply", reply: { id: "sharing", title: "Sharing" } }
+    ]);
+  }
+  if (step === "paymentMode") {
+    return sendButtons(userId, "💳 Payment mode?", [
+      { type: "reply", reply: { id: "full", title: "Full" } },
+      { type: "reply", reply: { id: "advance", title: "Advance" } },
+      { type: "reply", reply: { id: "onspot", title: "On-spot" } }
+    ]);
+  }
+  return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
+}
 
-    if (!message || message.type !== 'text') {
-      return res.sendStatus(200);  // ignore non-text
+async function sendTrekList(userId) {
+  return sendList(userId, "Choose trek:", [
+    {
+      title: "Popular Treks",
+      rows: [
+        { id: "kedarkantha", title: "Kedarkantha Trek" },
+        { id: "brahmatal", title: "Brahmatal Trek" },
+        { id: "harkidun", title: "Har Ki Dun" }
+      ]
     }
+  ], "🌄 Select a Trek");
+}
 
-    const from = message.from;
-    const msg = message.text.body;
-
-    console.log(`📩 Received message from ${from}: ${msg}`);
-
-    const reply = `👋 Hello! We received your message: "${msg}". A team member will assist you shortly.`;
-    await sendWhatsAppMessage(from, reply);
-
-    res.sendStatus(200);
-  } catch (err) {
-    console.error('❗ Webhook error:', err);
-    res.sendStatus(500);
-  }
-});
-
-export default router;
+module.exports = router;
