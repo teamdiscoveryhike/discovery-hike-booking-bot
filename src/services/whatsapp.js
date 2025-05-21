@@ -1,4 +1,5 @@
-const axios = require("axios");
+import axios from "axios";
+
 const WHATSAPP_API_URL = "https://graph.facebook.com/v18.0/{{PHONE_NUMBER_ID}}/messages";
 const TOKEN = process.env.WHATSAPP_TOKEN;
 
@@ -7,7 +8,7 @@ const headers = {
   "Content-Type": "application/json"
 };
 
-async function sendText(to, text) {
+export async function sendText(to, text) {
   return axios.post(WHATSAPP_API_URL, {
     messaging_product: "whatsapp",
     to,
@@ -16,7 +17,7 @@ async function sendText(to, text) {
   }, { headers });
 }
 
-async function sendButtons(to, bodyText, buttons) {
+export async function sendButtons(to, bodyText, buttons) {
   return axios.post(WHATSAPP_API_URL, {
     messaging_product: "whatsapp",
     to,
@@ -29,7 +30,7 @@ async function sendButtons(to, bodyText, buttons) {
   }, { headers });
 }
 
-async function sendList(to, bodyText, sections, headerText = "Select Option") {
+export async function sendList(to, bodyText, sections, headerText = "Select Option") {
   return axios.post(WHATSAPP_API_URL, {
     messaging_product: "whatsapp",
     to,
@@ -43,9 +44,3 @@ async function sendList(to, bodyText, sections, headerText = "Select Option") {
     }
   }, { headers });
 }
-
-module.exports = {
-  sendText,
-  sendButtons,
-  sendList
-};
