@@ -1,6 +1,5 @@
-const express = require("express");
-const router = express.Router();
-const {
+import express from "express";
+import {
   startSession,
   isSessionActive,
   getCurrentStep,
@@ -8,13 +7,15 @@ const {
   isSessionComplete,
   getSessionData,
   endSession
-} = require("../services/sessionManager");
+} from "../services/sessionManager.js";
 
-const {
+import {
   sendText,
   sendButtons,
   sendList
-} = require("../services/whatsapp");
+} from "../services/whatsapp.js";
+
+const router = express.Router();
 
 router.post("/", async (req, res) => {
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -97,4 +98,4 @@ async function sendTrekList(userId) {
   ], "🌄 Select a Trek");
 }
 
-export default router;;
+export default router;
