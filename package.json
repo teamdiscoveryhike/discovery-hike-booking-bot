@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+
   },
   "repository": {
     "type": "git",
@@ -25,7 +26,19 @@
     "pg": "^8.11.1",
     "@supabase/supabase-js": "^2.49.7"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/teamdiscoveryhike/discovery-hike-booking-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/teamdiscoveryhike/discovery-hike-booking-bot/issues"
+  },
+  "homepage": "https://github.com/teamdiscoveryhike/discovery-hike-booking-bot#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.7"
   }
 }
