@@ -5,6 +5,26 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/teamdiscoveryhike/discovery-hike-booking-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/teamdiscoveryhike/discovery-hike-booking-bot/issues"
+  },
+  "homepage": "https://github.com/teamdiscoveryhike/discovery-hike-booking-bot#readme",
+  "dependencies": {
+    "axios": "^1.6.7",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "pg": "^8.11.1",
+    "@supabase/supabase-js": "^2.49.7"
   },
   "repository": {
     "type": "git",
