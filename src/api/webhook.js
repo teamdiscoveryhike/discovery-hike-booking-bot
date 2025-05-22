@@ -1,4 +1,3 @@
-// ✅ Optimized & complete webhook.js with proper edit flow return to summary
 import express from "express";
 import {
   startSession,
@@ -11,7 +10,7 @@ import {
   setEditStep,
   isEditingSession,
   clearEditingFlag,
-  hasCompletedSession
+  getSessionObject,
 } from "../services/sessionManager.js";
 
 import {
@@ -116,68 +115,28 @@ router.post("/", async (req, res) => {
     }
 
     const editing = isEditingSession(from);
-    saveResponse(from, input);
+
+    // ✅ If editing, don't advance step index
+    saveResponse(from, input, !editing);
+
+    // ✅ Special case: if paymentMode is "onspot", skip advancePaid or reset to 0
+    if (step === "paymentMode" && input.toLowerCase() === "onspot") {
+      const session = getSessionObject(from);
+      session.data.advancePaid = 0;
+      if (!editing) session.stepIndex++; // Skip advancePaid if not editing
+    }
 
     if (editing) {
       clearEditingFlag(from);
       const data = getSessionData(from);
-      const groupSize = parseInt(data.groupSize || 0);
-      const ratePerPerson = parseInt(data.ratePerPerson || 0);
-      const advancePaid = parseInt(data.advancePaid || 0);
-      const total = groupSize * ratePerPerson;
-      const balance = total - advancePaid;
-
-      const summary = `🧾 *Booking Summary:*
-• *Trek:* ${data.trekName}
-• *Date:* ${data.trekDate}
-• *Group Size:* ${groupSize}
-• *Rate/Person:* ₹${ratePerPerson}
-• *Total:* ₹${total}
-• *Advance Paid:* ₹${advancePaid}
-• *Balance:* ₹${balance}
-• *Stay Type:* ${data.sharingType}
-• *Payment Mode:* ${data.paymentMode}
-• *Notes:* ${data.specialNotes || '-'}`;
-
-      await sendText(from, summary);
-      await sendButtons(from, "✅ Confirm booking?", [
-        { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
-        { type: "reply", reply: { id: "confirm_no", title: "No" } },
-        { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
-      ]);
-
+      await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
     }
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
       clearEditingFlag(from);
-
-      const groupSize = parseInt(data.groupSize || 0);
-      const ratePerPerson = parseInt(data.ratePerPerson || 0);
-      const advancePaid = parseInt(data.advancePaid || 0);
-      const total = groupSize * ratePerPerson;
-      const balance = total - advancePaid;
-
-      const summary = `🧾 *Booking Summary:*
-• *Trek:* ${data.trekName}
-• *Date:* ${data.trekDate}
-• *Group Size:* ${groupSize}
-• *Rate/Person:* ₹${ratePerPerson}
-• *Total:* ₹${total}
-• *Advance Paid:* ₹${advancePaid}
-• *Balance:* ₹${balance}
-• *Stay Type:* ${data.sharingType}
-• *Payment Mode:* ${data.paymentMode}
-• *Notes:* ${data.specialNotes || '-'}`;
-
-      await sendText(from, summary);
-      await sendButtons(from, "✅ Confirm booking?", [
-        { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
-        { type: "reply", reply: { id: "confirm_no", title: "No" } },
-        { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
-      ]);
-
+      await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
     }
 
@@ -224,6 +183,33 @@ async function sendTrekList(userId) {
       ]
     }
   ], "🌄 Select a Trek/Expedition");
+}
+
+async function sendSummaryAndConfirm(from, data) {
+  const groupSize = parseInt(data.groupSize || 0);
+  const ratePerPerson = parseInt(data.ratePerPerson || 0);
+  const advancePaid = parseInt(data.advancePaid || 0);
+  const total = groupSize * ratePerPerson;
+  const balance = total - advancePaid;
+
+  const summary = `🧾 *Booking Summary:*
+• *Trek:* ${data.trekName}
+• *Date:* ${data.trekDate}
+• *Group Size:* ${groupSize}
+• *Rate/Person:* ₹${ratePerPerson}
+• *Total:* ₹${total}
+• *Advance Paid:* ₹${advancePaid}
+• *Balance:* ₹${balance}
+• *Stay Type:* ${data.sharingType}
+• *Payment Mode:* ${data.paymentMode}
+• *Notes:* ${data.specialNotes || '-'}`;
+
+  await sendText(from, summary);
+  await sendButtons(from, "✅ Confirm booking?", [
+    { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
+    { type: "reply", reply: { id: "confirm_no", title: "No" } },
+    { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
+  ]);
 }
 
 export default router;
