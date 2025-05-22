@@ -6,7 +6,10 @@ import {
   saveResponse,
   isSessionComplete,
   getSessionData,
-  endSession
+  endSession,
+  setEditStep,
+  isEditingSession,
+  clearEditingFlag
 } from "../services/sessionManager.js";
 
 import {
@@ -17,25 +20,7 @@ import {
 
 const router = express.Router();
 
-// ✅ 1. GET /webhook — Meta verification
-router.get("/", (req, res) => {
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook verified by Meta!");
-    return res.status(200).send(challenge);
-  } else {
-    return res.sendStatus(403);
-  }
-});
-
-// ✅ 2. POST /webhook — Message handler
 router.post("/", async (req, res) => {
-  console.log("📥 Incoming webhook payload:", JSON.stringify(req.body, null, 2));
-
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   const from = message?.from;
   const text = message?.text?.body;
@@ -43,49 +28,77 @@ router.post("/", async (req, res) => {
   const listReply = message?.interactive?.list_reply?.id;
 
   if (!text && !buttonReply && !listReply) return res.sendStatus(200);
-
-  // ✅ Authorization check
   const allowedNumbers = process.env.ALLOWED_TEAM_NUMBERS?.split(",") || [];
   if (!allowedNumbers.includes(from)) {
-    console.log(`🚫 Unauthorized access attempt from: ${from}`);
     await sendText(from, "⛔ You are not authorized to use this booking bot.");
     return res.sendStatus(200);
   }
 
   const input = buttonReply || listReply || text;
-  const lowerInput = input.toLowerCase();
 
-  // ✅ Admin menu and session logic
   if (!isSessionActive(from)) {
-    const greetingInputs = ["Hi", "Hello", "Hey", "Menu"];
-    if (greetingInputs.includes(lowerInput)) {
-      await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.\nChoose a service:", [
-        { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } },
-        { type: "reply", reply: { id: "view_upcoming", title: "📅 Upcoming Treks" } },
-        { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } }
+    if (["hi", "hello", "menu"].includes(input.toLowerCase())) {
+      await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.", [
+        { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
       ]);
       return res.sendStatus(200);
     }
-
-    if (lowerInput.includes("book") || input === "start_booking") {
+    if (input === "start_booking") {
       startSession(from);
       await sendTrekList(from);
-    } else {
-      await sendButtons(from, "📋 Admin Menu:", [
-        { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } },
-        { type: "reply", reply: { id: "view_upcoming", title: "📅 Upcoming Treks" } },
-        { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } }
-      ]);
+      return res.sendStatus(200);
     }
+  }
+
+  // ✅ Handle edit mode selection
+  if (input === "edit_booking") {
+    const data = getSessionData(from);
+    const editFields = Object.keys(data).map(key => ({
+      id: `edit__${key}`,
+      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
+    }));
+    await sendList(from, "Which field to edit?", [{ title: "Fields", rows: editFields }]);
     return res.sendStatus(200);
   }
 
-  const step = getCurrentStep(from);
+  if (input.startsWith("edit__")) {
+    const field = input.replace("edit__", "");
+    setEditStep(from, field);
+    await askNextQuestion(from, field);
+    return res.sendStatus(200);
+  }
+
+  const currentStep = getCurrentStep(from);
+
+  // ✅ Date parsing
+  if (currentStep === "trekDate") {
+    if (input === "today") {
+      const today = new Date().toISOString().split("T")[0];
+      saveResponse(from, today);
+      await askNextQuestion(from, getCurrentStep(from));
+      return res.sendStatus(200);
+    } else if (input === "tomorrow") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const formatted = tomorrow.toISOString().split("T")[0];
+      saveResponse(from, formatted);
+      await askNextQuestion(from, getCurrentStep(from));
+      return res.sendStatus(200);
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+      await sendText(from, "📅 Please enter the date in YYYY-MM-DD format.");
+      return res.sendStatus(200);
+    }
+  }
+
   saveResponse(from, input);
 
   if (isSessionComplete(from)) {
     const data = getSessionData(from);
-    endSession(from);
+    if (isEditingSession(from)) {
+      clearEditingFlag(from);
+    } else {
+      endSession(from);
+    }
 
     const groupSize = parseInt(data.groupSize || 0);
     const ratePerPerson = parseInt(data.ratePerPerson || 0);
@@ -98,67 +111,56 @@ router.post("/", async (req, res) => {
 • *Date:* ${data.trekDate}
 • *Group Size:* ${groupSize}
 • *Rate/Person:* ₹${ratePerPerson}
-• *Total Amount:* ₹${total}
+• *Total:* ₹${total}
 • *Advance Paid:* ₹${advancePaid}
 • *Balance:* ₹${balance}
 • *Stay Type:* ${data.sharingType}
 • *Payment Mode:* ${data.paymentMode}
-• *Notes:* ${data.specialNotes || "-"}`;
+• *Notes:* ${data.specialNotes || '-'}`;
 
     await sendText(from, summary);
     await sendButtons(from, "✅ Confirm booking?", [
       { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
-      { type: "reply", reply: { id: "confirm_no", title: "No" } }
+      { type: "reply", reply: { id: "confirm_no", title: "No" } },
+      { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
     ]);
 
     return res.sendStatus(200);
   }
 
-  const nextStep = getCurrentStep(from);
-  await askNextQuestion(from, nextStep);
+  await askNextQuestion(from, getCurrentStep(from));
   res.sendStatus(200);
 });
 
-// ✅ 3. Ask next input based on current step
 async function askNextQuestion(userId, step) {
-  if (step === "trekName") {
-    return sendTrekList(userId);
-  }
-  if (step === "trekDate") {
-    return sendButtons(userId, "📅 Choose a date:", [
-      { type: "reply", reply: { id: "today", title: "Today" } },
-      { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
-      { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
-    ]);
-  }
-  if (step === "sharingType") {
-    return sendButtons(userId, "Select Sharing type:", [
-      { type: "reply", reply: { id: "Single", title: "Single" } },
-      { type: "reply", reply: { id: "Double", title: "Double" } },
-      { type: "reply", reply: { id: "Triple", title: "Triple" } }
-    ]);
-  }
-  if (step === "paymentMode") {
-    return sendButtons(userId, "💳 Payment mode?", [
-      { type: "reply", reply: { id: "Online", title: "Online" } },
-      { type: "reply", reply: { id: "onspot", title: "On-spot" } }
-    ]);
-  }
-
+  if (step === "trekName") return sendTrekList(userId);
+  if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
+    { type: "reply", reply: { id: "today", title: "Today" } },
+    { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
+    { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
+  ]);
+  if (step === "sharingType") return sendButtons(userId, "Select Sharing type:", [
+    { type: "reply", reply: { id: "Single", title: "Single" } },
+    { type: "reply", reply: { id: "Double", title: "Double" } },
+    { type: "reply", reply: { id: "Triple", title: "Triple" } }
+  ]);
+  if (step === "paymentMode") return sendButtons(userId, "💳 Payment mode?", [
+    { type: "reply", reply: { id: "Online", title: "Online" } },
+    { type: "reply", reply: { id: "onspot", title: "On-spot" } }
+  ]);
   return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
 }
 
-// ✅ 4. Trek selection list
 async function sendTrekList(userId) {
   return sendList(userId, "Choose Trek/Expedition:", [
     {
       title: "Popular Treks",
       rows: [
         { id: "Kedarkantha", title: "Kedarkantha Trek" },
-         { id: "Brahmatal", title: "Brahmatal Trek" },
-         { id: "BaliPass ", title: "Bali Pass Trek" },
-         { id: "BlackPeak", title: "Black Peak Expedition" },
-         { id: "BorasuPass", title: "Borasu Pass Trek" },
+        { id: "Brahmatal", title: "Brahmatal Trek" },
+        { id: "BaliPass", title: "Bali Pass Trek" },
+        { id: "BlackPeak", title: "Black Peak Expedition" },
+        { id: "BorasuPass", title: "Borasu Pass Trek" },
         { id: "DumdarkandiPass", title: "Dumdarkandi Pass Trek" },
         { id: "HarKiDun", title: "Har Ki Dun Trek" }
       ]
