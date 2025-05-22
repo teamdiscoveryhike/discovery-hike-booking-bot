@@ -1,4 +1,4 @@
-// ✅ Optimized & complete webhook.js with edit fix
+// ✅ Optimized & complete webhook.js with proper edit flow return to summary
 import express from "express";
 import {
   startSession,
@@ -76,7 +76,6 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ Handle confirmation responses
     if (input === "confirm_yes") {
       endSession(from);
       await sendText(from, "✅ Booking confirmed and saved successfully.");
@@ -97,7 +96,6 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ Date parsing
     if (step === "trekDate") {
       if (input === "today") {
         const today = new Date().toISOString().split("T")[0];
@@ -117,17 +115,43 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // ✅ Save user response
-    try {
-      saveResponse(from, input);
-    } catch (e) {
-      await sendText(from, "⚠️ Something went wrong. Please type *menu* to start again.");
+    const editing = isEditingSession(from);
+    saveResponse(from, input);
+
+    if (editing) {
+      clearEditingFlag(from);
+      const data = getSessionData(from);
+      const groupSize = parseInt(data.groupSize || 0);
+      const ratePerPerson = parseInt(data.ratePerPerson || 0);
+      const advancePaid = parseInt(data.advancePaid || 0);
+      const total = groupSize * ratePerPerson;
+      const balance = total - advancePaid;
+
+      const summary = `🧾 *Booking Summary:*
+• *Trek:* ${data.trekName}
+• *Date:* ${data.trekDate}
+• *Group Size:* ${groupSize}
+• *Rate/Person:* ₹${ratePerPerson}
+• *Total:* ₹${total}
+• *Advance Paid:* ₹${advancePaid}
+• *Balance:* ₹${balance}
+• *Stay Type:* ${data.sharingType}
+• *Payment Mode:* ${data.paymentMode}
+• *Notes:* ${data.specialNotes || '-'}`;
+
+      await sendText(from, summary);
+      await sendButtons(from, "✅ Confirm booking?", [
+        { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
+        { type: "reply", reply: { id: "confirm_no", title: "No" } },
+        { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
+      ]);
+
       return res.sendStatus(200);
     }
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
-      clearEditingFlag(from); // allow further edits before confirmation
+      clearEditingFlag(from);
 
       const groupSize = parseInt(data.groupSize || 0);
       const ratePerPerson = parseInt(data.ratePerPerson || 0);
