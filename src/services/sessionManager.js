@@ -26,12 +26,13 @@ export function getCurrentStep(userId) {
   return steps[session.stepIndex];
 }
 
-export function saveResponse(userId, value) {
+// ✅ Modified to allow optional skipping step advance
+export function saveResponse(userId, value, advanceStep = true) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
   const key = steps[session.stepIndex];
   session.data[key] = value;
-  session.stepIndex++;
+  if (advanceStep) session.stepIndex++;
 }
 
 export function isSessionComplete(userId) {
@@ -43,6 +44,12 @@ export function getSessionData(userId) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
   return session.data;
+}
+
+export function getSessionObject(userId) {
+  const session = sessions.get(userId);
+  if (!session) throw new Error("Session not found for user: " + userId);
+  return session;
 }
 
 export function endSession(userId) {
