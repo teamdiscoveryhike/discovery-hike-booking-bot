@@ -96,7 +96,6 @@ router.post("/", async (req, res) => {
     const summary = `🧾 *Booking Summary:*
 • *Trek:* ${data.trekName}
 • *Date:* ${data.trekDate}
-• *Pickup:* ${data.pickupLocation}
 • *Group Size:* ${groupSize}
 • *Rate/Person:* ₹${ratePerPerson}
 • *Total Amount:* ₹${total}
@@ -104,7 +103,6 @@ router.post("/", async (req, res) => {
 • *Balance:* ₹${balance}
 • *Stay Type:* ${data.sharingType}
 • *Payment Mode:* ${data.paymentMode}
-• *Reference ID:* ${data.paymentRef}
 • *Notes:* ${data.specialNotes || "-"}`;
 
     await sendText(from, summary);
@@ -135,14 +133,15 @@ async function askNextQuestion(userId, step) {
   }
   if (step === "sharingType") {
     return sendButtons(userId, "How would the group prefer to stay?", [
-      { type: "reply", reply: { id: "private", title: "Private" } },
-      { type: "reply", reply: { id: "sharing", title: "Sharing" } }
+      { type: "reply", reply: { id: "Single", title: "Single" } },
+      { type: "reply", reply: { id: "Double", title: "Double" } },
+      { type: "reply", reply: { id: "Triple", title: "Triple" } },
+      { type: "reply", reply: { id: "Quad", title: "Quad" } }
     ]);
   }
   if (step === "paymentMode") {
     return sendButtons(userId, "💳 Payment mode?", [
-      { type: "reply", reply: { id: "full", title: "Full" } },
-      { type: "reply", reply: { id: "advance", title: "Advance" } },
+      { type: "reply", reply: { id: "Online", title: "Online" } },
       { type: "reply", reply: { id: "onspot", title: "On-spot" } }
     ]);
   }
@@ -152,16 +151,20 @@ async function askNextQuestion(userId, step) {
 
 // ✅ 4. Trek selection list
 async function sendTrekList(userId) {
-  return sendList(userId, "Choose trek:", [
+  return sendList(userId, "Choose Trek/Expedition:", [
     {
       title: "Popular Treks",
       rows: [
-        { id: "kedarkantha", title: "Kedarkantha Trek" },
-        { id: "brahmatal", title: "Brahmatal Trek" },
-        { id: "harkidun", title: "Har Ki Dun" }
+        { id: "Kedarkantha", title: "Kedarkantha Trek" },
+         { id: "Brahmatal", title: "Brahmatal Trek" },
+         { id: "BaliPass ", title: "Bali Pass Trek" },
+         { id: "BlackPeak", title: "Black Peak Expedition" },
+         { id: "BorasuPass", title: "Borasu Pass Trek" },
+        { id: "DumdarkandiPass", title: "Dumdarkandi Pass Trek" },
+        { id: "HarKiDun", title: "Har Ki Dun Trek" }
       ]
     }
-  ], "🌄 Select a Trek");
+  ], "🌄 Select a Trek/Expedition");
 }
 
 export default router;
