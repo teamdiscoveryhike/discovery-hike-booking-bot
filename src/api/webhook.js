@@ -53,10 +53,22 @@ router.post("/", async (req, res) => {
   }
 
   const input = buttonReply || listReply || text;
+  const lowerInput = input.toLowerCase();
 
-  // ✅ Admin menu entry point
+  // ✅ Admin menu and session logic
   if (!isSessionActive(from)) {
-    if (input.toLowerCase().includes("book") || input === "start_booking") {
+    const greetingInputs = ["hi", "hello", "hey", "menu"];
+    if (greetingInputs.includes(lowerInput)) {
+      await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.\nChoose a service:", [
+        { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } },
+        { type: "reply", reply: { id: "view_upcoming", title: "📅 Upcoming Treks" } },
+        { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } },
+        { type: "reply", reply: { id: "log_payment", title: "💰 Log Payment" } }
+      ]);
+      return res.sendStatus(200);
+    }
+
+    if (lowerInput.includes("book") || input === "start_booking") {
       startSession(from);
       await sendTrekList(from);
     } else {
