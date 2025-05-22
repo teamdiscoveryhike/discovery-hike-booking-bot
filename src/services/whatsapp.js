@@ -70,7 +70,6 @@ export async function sendAdminMenu(to) {
   return sendButtons(to, "👋 Welcome to *Discovery Hike Admin Panel*.\nChoose a service:", [
     { type: "reply", reply: { id: "start_booking", title: "📄 New Booking" } },
     { type: "reply", reply: { id: "view_upcoming", title: "📅 Upcoming Treks" } },
-    { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } },
-    { type: "reply", reply: { id: "log_payment", title: "💳 Log Payment" } }
+    { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } }
   ]);
 }
