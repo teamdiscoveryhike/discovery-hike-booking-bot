@@ -132,11 +132,10 @@ async function askNextQuestion(userId, step) {
     ]);
   }
   if (step === "sharingType") {
-    return sendButtons(userId, "How would the group prefer to stay?", [
+    return sendButtons(userId, "Select Sharing type:", [
       { type: "reply", reply: { id: "Single", title: "Single" } },
       { type: "reply", reply: { id: "Double", title: "Double" } },
-      { type: "reply", reply: { id: "Triple", title: "Triple" } },
-      { type: "reply", reply: { id: "Quad", title: "Quad" } }
+      { type: "reply", reply: { id: "Triple", title: "Triple" } }
     ]);
   }
   if (step === "paymentMode") {
