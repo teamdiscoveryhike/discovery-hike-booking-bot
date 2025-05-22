@@ -62,7 +62,13 @@ function setEditStep(userId, stepKey) {
   if (session && stepIndex !== -1) {
     session.stepIndex = stepIndex;
     session.editing = true;
+    session.editingField = stepKey;
   }
+}
+
+function getEditingField(userId) {
+  const session = sessions.get(userId);
+  return session?.editingField || null;
 }
 
 function isEditingSession(userId) {
@@ -72,7 +78,10 @@ function isEditingSession(userId) {
 
 function clearEditingFlag(userId) {
   const session = sessions.get(userId);
-  if (session) session.editing = false;
+  if (session) {
+    session.editing = false;
+    delete session.editingField;
+  }
 }
 
 function hasCompletedSession(userId) {
@@ -91,6 +100,7 @@ export {
   endSession as clearSession,
   endSession,
   setEditStep,
+  getEditingField,
   isEditingSession,
   clearEditingFlag,
   hasCompletedSession
