@@ -1,7 +1,7 @@
 
 import askNextQuestion from "./askNextQuestion.js";
 import sendSummaryAndConfirm from "./sendSummary.js";
-import handleDateInput from "./handledateInput.js";
+import handleDateInput from "./handleDateInput.js";
 import {
   getSessionObject,
   saveResponse,
