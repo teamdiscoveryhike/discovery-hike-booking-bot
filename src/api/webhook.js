@@ -137,12 +137,35 @@ router.post("/", async (req, res) => {
       if (!isEditing) session.stepIndex++;
     }
 
+    
     if (isEditing) {
-      clearEditingFlag(from);
       const data = getSessionData(from);
+
+      // Handle paymentMode edit from onspot → online
+      if (step === "paymentMode" && input.toLowerCase() === "online") {
+        const session = getSessionObject(from);
+        const steps = [
+          "trekName", "trekDate", "groupSize", "ratePerPerson",
+          "paymentMode", "advancePaid", "sharingType", "specialNotes"
+        ];
+        const advanceIndex = steps.indexOf("advancePaid");
+        session.stepIndex = advanceIndex;
+        session.editing = true; // keep editing flag ON
+        await askNextQuestion(from, "advancePaid");
+        return res.sendStatus(200);
+      }
+
+      if (step === "advancePaid") {
+        clearEditingFlag(from);
+        await sendSummaryAndConfirm(from, data);
+        return res.sendStatus(200);
+      }
+
+      clearEditingFlag(from);
       await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
     }
+    
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
