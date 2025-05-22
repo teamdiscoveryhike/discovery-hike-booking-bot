@@ -1,17 +1,3 @@
-router.get("/", (req, res) => {
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN; // ✅ Match your .env
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook verified by Meta!");
-    return res.status(200).send(challenge);
-  } else {
-    return res.sendStatus(403);
-  }
-});
-
 import express from "express";
 import {
   startSession,
@@ -31,7 +17,25 @@ import {
 
 const router = express.Router();
 
+// ✅ 1. GET /webhook — Meta verification
+router.get("/", (req, res) => {
+  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ Webhook verified by Meta!");
+    return res.status(200).send(challenge);
+  } else {
+    return res.sendStatus(403);
+  }
+});
+
+// ✅ 2. POST /webhook — Message handler
 router.post("/", async (req, res) => {
+  console.log("📥 Incoming webhook payload:", JSON.stringify(req.body, null, 2));
+
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   const from = message?.from;
   const text = message?.text?.body;
@@ -42,7 +46,8 @@ router.post("/", async (req, res) => {
 
   if (text?.toLowerCase() === "book trek") {
     startSession(from);
-    return await sendTrekList(from), res.sendStatus(200);
+    await sendTrekList(from);
+    return res.sendStatus(200);
   }
 
   if (!isSessionActive(from)) return res.sendStatus(200);
@@ -61,10 +66,12 @@ router.post("/", async (req, res) => {
       .join("\n")}`;
 
     await sendText(from, summary);
-    return await sendButtons(from, "✅ Confirm booking?", [
+    await sendButtons(from, "✅ Confirm booking?", [
       { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
       { type: "reply", reply: { id: "confirm_no", title: "No" } }
     ]);
+
+    return res.sendStatus(200);
   }
 
   const nextStep = getCurrentStep(from);
@@ -72,6 +79,7 @@ router.post("/", async (req, res) => {
   res.sendStatus(200);
 });
 
+// ✅ 3. Ask next input based on current step
 async function askNextQuestion(userId, step) {
   if (step === "trekName") {
     return sendTrekList(userId);
@@ -96,9 +104,11 @@ async function askNextQuestion(userId, step) {
       { type: "reply", reply: { id: "onspot", title: "On-spot" } }
     ]);
   }
+
   return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
 }
 
+// ✅ 4. Trek selection list
 async function sendTrekList(userId) {
   return sendList(userId, "Choose trek:", [
     {
