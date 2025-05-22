@@ -22,11 +22,17 @@ export function isSessionActive(userId) {
 
 export function getCurrentStep(userId) {
   const session = sessions.get(userId);
+  if (!session) {
+    throw new Error("Session not found for user: " + userId);
+  }
   return steps[session.stepIndex];
 }
 
 export function saveResponse(userId, value) {
   const session = sessions.get(userId);
+  if (!session) {
+    throw new Error("Session not found for user: " + userId);
+  }
   const key = steps[session.stepIndex];
   session.data[key] = value;
   session.stepIndex++;
@@ -34,7 +40,7 @@ export function saveResponse(userId, value) {
 
 export function isSessionComplete(userId) {
   const session = sessions.get(userId);
-  return session.stepIndex >= steps.length;
+  return session?.stepIndex >= steps.length;
 }
 
 export function getSessionData(userId) {
@@ -45,7 +51,6 @@ export function getSessionData(userId) {
   return session.data;
 }
 
-
 export function endSession(userId) {
   sessions.delete(userId);
 }
@@ -54,7 +59,7 @@ export function endSession(userId) {
 export function setEditStep(userId, stepKey) {
   const session = sessions.get(userId);
   const stepIndex = steps.indexOf(stepKey);
-  if (stepIndex !== -1) {
+  if (session && stepIndex !== -1) {
     session.stepIndex = stepIndex;
     session.editing = true;
   }
