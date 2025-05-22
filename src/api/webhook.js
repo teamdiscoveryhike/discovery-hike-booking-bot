@@ -9,17 +9,6 @@ import {
   endSession
 } from "../services/sessionManager.js";
 
-import {import express from "express";
-import {
-  startSession,
-  isSessionActive,
-  getCurrentStep,
-  saveResponse,
-  isSessionComplete,
-  getSessionData,
-  endSession
-} from "../services/sessionManager.js";
-
 import {
   sendText,
   sendButtons,
