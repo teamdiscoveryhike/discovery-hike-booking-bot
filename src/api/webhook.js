@@ -1,3 +1,4 @@
+
 import express from "express";
 import {
   startSession,
@@ -95,18 +96,32 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    const isEditing = isEditingSession(from);
+
     if (step === "trekDate") {
       if (input === "today") {
         const today = new Date().toISOString().split("T")[0];
-        saveResponse(from, today);
-        await askNextQuestion(from, getCurrentStep(from));
+        saveResponse(from, today, !isEditing);
+        if (isEditing) {
+          clearEditingFlag(from);
+          const data = getSessionData(from);
+          await sendSummaryAndConfirm(from, data);
+        } else {
+          await askNextQuestion(from, getCurrentStep(from));
+        }
         return res.sendStatus(200);
       } else if (input === "tomorrow") {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const formatted = tomorrow.toISOString().split("T")[0];
-        saveResponse(from, formatted);
-        await askNextQuestion(from, getCurrentStep(from));
+        saveResponse(from, formatted, !isEditing);
+        if (isEditing) {
+          clearEditingFlag(from);
+          const data = getSessionData(from);
+          await sendSummaryAndConfirm(from, data);
+        } else {
+          await askNextQuestion(from, getCurrentStep(from));
+        }
         return res.sendStatus(200);
       } else if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
         await sendText(from, "📅 Please enter the date in YYYY-MM-DD format.");
@@ -114,19 +129,15 @@ router.post("/", async (req, res) => {
       }
     }
 
-    const editing = isEditingSession(from);
+    saveResponse(from, input, !isEditing);
 
-    // ✅ If editing, don't advance step index
-    saveResponse(from, input, !editing);
-
-    // ✅ Special case: if paymentMode is "onspot", skip advancePaid or reset to 0
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
       const session = getSessionObject(from);
       session.data.advancePaid = 0;
-      if (!editing) session.stepIndex++; // Skip advancePaid if not editing
+      if (!isEditing) session.stepIndex++;
     }
 
-    if (editing) {
+    if (isEditing) {
       clearEditingFlag(from);
       const data = getSessionData(from);
       await sendSummaryAndConfirm(from, data);
