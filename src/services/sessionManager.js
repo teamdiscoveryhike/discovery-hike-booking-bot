@@ -1,10 +1,13 @@
 const sessions = new Map();
 
+// ✅ Updated step list with amount fields
 const steps = [
   "trekName",
   "trekDate",
   "pickupLocation",
   "groupSize",
+  "ratePerPerson",   // NEW
+  "advancePaid",     // NEW
   "sharingType",
   "paymentMode",
   "paymentRef",
