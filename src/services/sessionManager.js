@@ -1,3 +1,4 @@
+
 const sessions = new Map();
 
 const steps = [
@@ -79,7 +80,6 @@ function hasCompletedSession(userId) {
   return session && session.stepIndex >= steps.length;
 }
 
-// ✅ Final export block — includes alias for clearSession
 export {
   startSession,
   isSessionActive,
@@ -88,8 +88,8 @@ export {
   isSessionComplete,
   getSessionData,
   getSessionObject,
+  endSession as clearSession,
   endSession,
-  clearSession: endSession, // ✅ Alias added for compatibility
   setEditStep,
   isEditingSession,
   clearEditingFlag,
