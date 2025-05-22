@@ -1,12 +1,12 @@
-
 import { clearEditingFlag, getSessionObject, getSessionData } from "../services/sessionManager.js";
-import askNextQuestion from "./askNextQuestion.js";
-import sendSummaryAndConfirm from "./sendSummary.js";
+import steps from "../utils/steps.js";
+import askNextQuestion from "./flows/askNextQuestion.js";
+import sendSummaryAndConfirm from "./flows/sendSummary.js";
 
 export default async function handleEditFlow(from, step, input) {
   if (step === "paymentMode" && input.toLowerCase() === "online") {
     const session = getSessionObject(from);
-    session.stepIndex = 5; // advancePaid index in your steps
+    session.stepIndex = steps.indexOf("advancePaid");
     session.editing = true;
     await askNextQuestion(from, "advancePaid");
     return "waiting";
@@ -24,4 +24,3 @@ export default async function handleEditFlow(from, step, input) {
   await sendSummaryAndConfirm(from, data);
   return "done";
 }
-
