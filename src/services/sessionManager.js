@@ -1,4 +1,3 @@
-
 const sessions = new Map();
 
 const steps = [
@@ -12,22 +11,22 @@ const steps = [
   "specialNotes"
 ];
 
-export function startSession(userId) {
+function startSession(userId) {
   sessions.set(userId, { stepIndex: 0, data: {}, editing: false });
   return steps[0];
 }
 
-export function isSessionActive(userId) {
+function isSessionActive(userId) {
   return sessions.has(userId);
 }
 
-export function getCurrentStep(userId) {
+function getCurrentStep(userId) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
   return steps[session.stepIndex];
 }
 
-export function saveResponse(userId, value, advanceStep = true) {
+function saveResponse(userId, value, advanceStep = true) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
   const key = steps[session.stepIndex];
@@ -35,28 +34,28 @@ export function saveResponse(userId, value, advanceStep = true) {
   if (advanceStep) session.stepIndex++;
 }
 
-export function isSessionComplete(userId) {
+function isSessionComplete(userId) {
   const session = sessions.get(userId);
   return session?.stepIndex >= steps.length;
 }
 
-export function getSessionData(userId) {
+function getSessionData(userId) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
   return session.data;
 }
 
-export function getSessionObject(userId) {
+function getSessionObject(userId) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
   return session;
 }
 
-export function endSession(userId) {
+function endSession(userId) {
   sessions.delete(userId);
 }
 
-export function setEditStep(userId, stepKey) {
+function setEditStep(userId, stepKey) {
   const session = sessions.get(userId);
   const stepIndex = steps.indexOf(stepKey);
   if (session && stepIndex !== -1) {
@@ -65,17 +64,34 @@ export function setEditStep(userId, stepKey) {
   }
 }
 
-export function isEditingSession(userId) {
+function isEditingSession(userId) {
   const session = sessions.get(userId);
   return !!session?.editing;
 }
 
-export function clearEditingFlag(userId) {
+function clearEditingFlag(userId) {
   const session = sessions.get(userId);
   if (session) session.editing = false;
 }
 
-export function hasCompletedSession(userId) {
+function hasCompletedSession(userId) {
   const session = sessions.get(userId);
   return session && session.stepIndex >= steps.length;
 }
+
+// ✅ Final export block — includes alias for clearSession
+export {
+  startSession,
+  isSessionActive,
+  getCurrentStep,
+  saveResponse,
+  isSessionComplete,
+  getSessionData,
+  getSessionObject,
+  endSession,
+  clearSession: endSession, // ✅ Alias added for compatibility
+  setEditStep,
+  isEditingSession,
+  clearEditingFlag,
+  hasCompletedSession
+};
