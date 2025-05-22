@@ -1,12 +1,11 @@
 const sessions = new Map();
 
-// ✅ Updated step list with amount fields
 const steps = [
   "trekName",
   "trekDate",
   "groupSize",
-  "ratePerPerson",   // NEW
-  "advancePaid",     // NEW
+  "ratePerPerson",
+  "advancePaid",
   "sharingType",
   "paymentMode",
   "specialNotes"
@@ -45,4 +44,24 @@ export function getSessionData(userId) {
 
 export function endSession(userId) {
   sessions.delete(userId);
+}
+
+// 🆕 Editing support
+export function setEditStep(userId, stepKey) {
+  const session = sessions.get(userId);
+  const stepIndex = steps.indexOf(stepKey);
+  if (stepIndex !== -1) {
+    session.stepIndex = stepIndex;
+    session.editing = true;
+  }
+}
+
+export function isEditingSession(userId) {
+  const session = sessions.get(userId);
+  return session?.editing || false;
+}
+
+export function clearEditingFlag(userId) {
+  const session = sessions.get(userId);
+  if (session) delete session.editing;
 }
