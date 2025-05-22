@@ -1,3 +1,16 @@
+router.get("/", (req, res) => {
+  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN; // ✅ Match your .env
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ Webhook verified by Meta!");
+    return res.status(200).send(challenge);
+  } else {
+    return res.sendStatus(403);
+  }
+});
 
 import express from "express";
 import {
