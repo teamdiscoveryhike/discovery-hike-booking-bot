@@ -1,3 +1,4 @@
+
 const sessions = new Map();
 
 const steps = [
@@ -5,8 +6,8 @@ const steps = [
   "trekDate",
   "groupSize",
   "ratePerPerson",
-  "paymentMode",      // ✅ Correct order
-  "advancePaid",      // ✅ Conditionally skipped
+  "paymentMode",
+  "advancePaid",
   "sharingType",
   "specialNotes"
 ];
@@ -26,7 +27,6 @@ export function getCurrentStep(userId) {
   return steps[session.stepIndex];
 }
 
-// ✅ Supports conditional step advancing
 export function saveResponse(userId, value, advanceStep = true) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
