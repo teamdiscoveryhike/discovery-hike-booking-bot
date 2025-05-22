@@ -4,15 +4,12 @@ const sessions = new Map();
 const steps = [
   "trekName",
   "trekDate",
-  "pickupLocation",
   "groupSize",
   "ratePerPerson",   // NEW
   "advancePaid",     // NEW
   "sharingType",
   "paymentMode",
-  "paymentRef",
-  "specialNotes",
-  "confirmation"
+  "specialNotes"
 ];
 
 export function startSession(userId) {
