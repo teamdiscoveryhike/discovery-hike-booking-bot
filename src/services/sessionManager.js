@@ -5,9 +5,9 @@ const steps = [
   "trekDate",
   "groupSize",
   "ratePerPerson",
-  "advancePaid",
+  "paymentMode",      // ✅ Correct order
+  "advancePaid",      // ✅ Conditionally skipped
   "sharingType",
-  "paymentMode",
   "specialNotes"
 ];
 
@@ -26,7 +26,7 @@ export function getCurrentStep(userId) {
   return steps[session.stepIndex];
 }
 
-// ✅ Modified to allow optional skipping step advance
+// ✅ Supports conditional step advancing
 export function saveResponse(userId, value, advanceStep = true) {
   const session = sessions.get(userId);
   if (!session) throw new Error("Session not found for user: " + userId);
