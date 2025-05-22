@@ -37,7 +37,7 @@ router.post("/", async (req, res) => {
   const input = buttonReply || listReply || text;
 
   if (!isSessionActive(from)) {
-    if (["hi", "hello", "menu"].includes(input.toLowerCase())) {
+    if (["Hi", "Hello", "Menu"].includes(input.toLowerCase())) {
       await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.", [
         { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
       ]);
@@ -51,15 +51,20 @@ router.post("/", async (req, res) => {
   }
 
   // ✅ Handle edit mode selection
-  if (input === "edit_booking") {
+if (input === "edit_booking") {
+  try {
     const data = getSessionData(from);
     const editFields = Object.keys(data).map(key => ({
       id: `edit__${key}`,
       title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
     }));
     await sendList(from, "Which field to edit?", [{ title: "Fields", rows: editFields }]);
-    return res.sendStatus(200);
+  } catch (e) {
+    await sendText(from, "⚠️ No active session. Please start a new booking.");
   }
+  return res.sendStatus(200);
+}
+
 
   if (input.startsWith("edit__")) {
     const field = input.replace("edit__", "");
