@@ -61,9 +61,29 @@ router.post("/", async (req, res) => {
     const data = getSessionData(from);
     endSession(from);
 
-    const summary = `🧾 *Booking Summary:*\n${Object.entries(data)
-      .map(([k, v]) => `• *${k}*: ${v}`)
-      .join("\n")}`;
+    // 🧠 Parse numeric fields
+    const groupSize = parseInt(data.groupSize || 0);
+    const ratePerPerson = parseInt(data.ratePerPerson || 0);
+    const advancePaid = parseInt(data.advancePaid || 0);
+
+    const total = groupSize * ratePerPerson;
+    const balance = total - advancePaid;
+
+    // 🧾 Booking summary
+    const summary = `🧾 *Booking Summary:*\n
+• *Trek:* ${data.trekName}
+• *Date:* ${data.trekDate}
+• *Pickup:* ${data.pickupLocation}
+• *Group Size:* ${groupSize}
+• *Rate/Person:* ₹${ratePerPerson}
+• *Total Amount:* ₹${total}
+• *Advance Paid:* ₹${advancePaid}
+• *Balance:* ₹${balance}
+• *Stay Type:* ${data.sharingType}
+• *Payment Mode:* ${data.paymentMode}
+• *Reference ID:* ${data.paymentRef}
+• *Notes:* ${data.specialNotes || "-"}
+`;
 
     await sendText(from, summary);
     await sendButtons(from, "✅ Confirm booking?", [
@@ -105,6 +125,7 @@ async function askNextQuestion(userId, step) {
     ]);
   }
 
+  // 🧠 Fallback to simple input
   return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
 }
 
