@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const WHATSAPP_API_URL = "https://graph.facebook.com/v18.0/{{PHONE_NUMBER_ID}}/messages";
-const TOKEN = process.env.WHATSAPP_TOKEN;
+const WHATSAPP_API_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+const TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 
 const headers = {
   Authorization: `Bearer ${TOKEN}`,
@@ -9,38 +9,50 @@ const headers = {
 };
 
 export async function sendText(to, text) {
-  return axios.post(WHATSAPP_API_URL, {
-    messaging_product: "whatsapp",
-    to,
-    type: "text",
-    text: { body: text }
-  }, { headers });
+  try {
+    await axios.post(WHATSAPP_API_URL, {
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: text }
+    }, { headers });
+  } catch (err) {
+    console.error("❌ sendText error:", err.response?.data || err.message);
+  }
 }
 
 export async function sendButtons(to, bodyText, buttons) {
-  return axios.post(WHATSAPP_API_URL, {
-    messaging_product: "whatsapp",
-    to,
-    type: "interactive",
-    interactive: {
-      type: "button",
-      body: { text: bodyText },
-      action: { buttons }
-    }
-  }, { headers });
+  try {
+    await axios.post(WHATSAPP_API_URL, {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: bodyText },
+        action: { buttons }
+      }
+    }, { headers });
+  } catch (err) {
+    console.error("❌ sendButtons error:", err.response?.data || err.message);
+  }
 }
 
 export async function sendList(to, bodyText, sections, headerText = "Select Option") {
-  return axios.post(WHATSAPP_API_URL, {
-    messaging_product: "whatsapp",
-    to,
-    type: "interactive",
-    interactive: {
-      type: "list",
-      header: { type: "text", text: headerText },
-      body: { text: bodyText },
-      footer: { text: "Discovery Hike" },
-      action: { button: "Choose", sections }
-    }
-  }, { headers });
+  try {
+    await axios.post(WHATSAPP_API_URL, {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        header: { type: "text", text: headerText },
+        body: { text: bodyText },
+        footer: { text: "Discovery Hike" },
+        action: { button: "Choose", sections }
+      }
+    }, { headers });
+  } catch (err) {
+    console.error("❌ sendList error:", err.response?.data || err.message);
+  }
 }
