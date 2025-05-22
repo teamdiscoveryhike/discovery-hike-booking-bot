@@ -39,8 +39,12 @@ export function isSessionComplete(userId) {
 
 export function getSessionData(userId) {
   const session = sessions.get(userId);
+  if (!session) {
+    throw new Error("Session not found for user: " + userId);
+  }
   return session.data;
 }
+
 
 export function endSession(userId) {
   sessions.delete(userId);
