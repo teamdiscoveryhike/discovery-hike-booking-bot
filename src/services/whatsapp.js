@@ -8,6 +8,7 @@ const headers = {
   "Content-Type": "application/json"
 };
 
+// ✅ 1. Send plain text
 export async function sendText(to, text) {
   try {
     await axios.post(WHATSAPP_API_URL, {
@@ -21,6 +22,7 @@ export async function sendText(to, text) {
   }
 }
 
+// ✅ 2. Send buttons (for confirmation, service menu, etc.)
 export async function sendButtons(to, bodyText, buttons) {
   try {
     await axios.post(WHATSAPP_API_URL, {
@@ -38,6 +40,7 @@ export async function sendButtons(to, bodyText, buttons) {
   }
 }
 
+// ✅ 3. Send list (for trek selection, etc.)
 export async function sendList(to, bodyText, sections, headerText = "Select Option") {
   try {
     await axios.post(WHATSAPP_API_URL, {
@@ -55,4 +58,19 @@ export async function sendList(to, bodyText, sections, headerText = "Select Opti
   } catch (err) {
     console.error("❌ sendList error:", err.response?.data || err.message);
   }
+}
+
+// ✅ 4. Reusable: Unauthorized access response
+export async function sendUnauthorized(to) {
+  return sendText(to, "⛔ You are not authorized to use this booking bot.");
+}
+
+// ✅ 5. Reusable: Admin menu
+export async function sendAdminMenu(to) {
+  return sendButtons(to, "👋 Welcome to *Discovery Hike Admin Panel*.\nChoose a service:", [
+    { type: "reply", reply: { id: "start_booking", title: "📄 New Booking" } },
+    { type: "reply", reply: { id: "view_upcoming", title: "📅 Upcoming Treks" } },
+    { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } },
+    { type: "reply", reply: { id: "log_payment", title: "💳 Log Payment" } }
+  ]);
 }
