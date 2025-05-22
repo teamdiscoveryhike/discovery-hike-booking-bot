@@ -1,4 +1,4 @@
-// ✅ Safe & complete webhook.js with error handling
+// ✅ Optimized & complete webhook.js with edit fix
 import express from "express";
 import {
   startSession,
@@ -10,7 +10,8 @@ import {
   endSession,
   setEditStep,
   isEditingSession,
-  clearEditingFlag
+  clearEditingFlag,
+  hasCompletedSession
 } from "../services/sessionManager.js";
 
 import {
@@ -30,6 +31,7 @@ router.post("/", async (req, res) => {
     const listReply = message?.interactive?.list_reply?.id;
 
     if (!text && !buttonReply && !listReply) return res.sendStatus(200);
+
     const allowedNumbers = process.env.ALLOWED_TEAM_NUMBERS?.split(",") || [];
     if (!allowedNumbers.includes(from)) {
       await sendText(from, "⛔ You are not authorized to use this booking bot.");
@@ -37,9 +39,10 @@ router.post("/", async (req, res) => {
     }
 
     const input = buttonReply || listReply || text;
+    const lowerInput = input.toLowerCase();
 
     if (!isSessionActive(from)) {
-      if (["hi", "hello", "menu"].includes(input.toLowerCase())) {
+      if (["hi", "hello", "menu"].includes(lowerInput)) {
         await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.", [
           { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
         ]);
@@ -73,15 +76,29 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    let currentStep;
-    try {
-      currentStep = getCurrentStep(from);
-    } catch (e) {
-      await sendText(from, "⚠️ Session expired or invalid. Please start again.");
+    // ✅ Handle confirmation responses
+    if (input === "confirm_yes") {
+      endSession(from);
+      await sendText(from, "✅ Booking confirmed and saved successfully.");
       return res.sendStatus(200);
     }
 
-    if (currentStep === "trekDate") {
+    if (input === "confirm_no") {
+      endSession(from);
+      await sendText(from, "❌ Booking canceled. Type *menu* to restart.");
+      return res.sendStatus(200);
+    }
+
+    let step;
+    try {
+      step = getCurrentStep(from);
+    } catch (e) {
+      await sendText(from, "⚠️ Session expired. Please type *menu* to start over.");
+      return res.sendStatus(200);
+    }
+
+    // ✅ Date parsing
+    if (step === "trekDate") {
       if (input === "today") {
         const today = new Date().toISOString().split("T")[0];
         saveResponse(from, today);
@@ -100,20 +117,17 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ✅ Save user response
     try {
       saveResponse(from, input);
     } catch (e) {
-      await sendText(from, "⚠️ Something went wrong. Please start a new booking.");
+      await sendText(from, "⚠️ Something went wrong. Please type *menu* to start again.");
       return res.sendStatus(200);
     }
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
-      if (isEditingSession(from)) {
-        clearEditingFlag(from);
-      } else {
-        endSession(from);
-      }
+      clearEditingFlag(from); // allow further edits before confirmation
 
       const groupSize = parseInt(data.groupSize || 0);
       const ratePerPerson = parseInt(data.ratePerPerson || 0);
@@ -147,7 +161,7 @@ router.post("/", async (req, res) => {
     res.sendStatus(200);
   } catch (error) {
     console.error("❌ webhook error:", error.message);
-    await sendText(req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from, "❌ Internal server error. Please try again.");
+    await sendText(req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from, "❌ Internal error. Please try again.");
     res.sendStatus(500);
   }
 });
