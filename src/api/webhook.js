@@ -53,6 +53,7 @@ router.post("/", async (req, res) => {
     }
 
     const input = buttonReply || listReply || text;
+    if (!input) return res.sendStatus(200);
     if (input === "category_trek" || input === "category_expedition") {
   const category = input === "category_trek" ? "Trek" : "Expedition";
   const session = getSessionObject(from);
