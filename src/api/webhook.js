@@ -107,7 +107,7 @@ router.post("/", async (req, res) => {
 
     if (input === "confirm_yes") {
       endSession(from);
-      await sendText(from, "✅ Booking confirmed. Client will receive whatsApp and Email Confirmation shortly.");
+      await sendText(from, "✅ Booking confirmed. Client will receive WhatsApp and Email Confirmation shortly.");
       return res.sendStatus(200);
     }
 
