@@ -5,6 +5,7 @@ const steps = [
   "clientName",
   "clientPhone",
   "clientEmail",
+  "trekCategory",
   "trekName",
   "trekDate",
   "groupSize",
