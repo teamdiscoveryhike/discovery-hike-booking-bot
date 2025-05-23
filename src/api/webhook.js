@@ -1,3 +1,4 @@
+// PATCHED webhook.js — Bug Fixes + Restored Trek List Pagination
 
 import express from "express";
 import {
@@ -20,6 +21,7 @@ import {
   sendButtons,
   sendList
 } from "../services/whatsapp.js";
+
 const TREK_LIST = {
   Trek: [
     { id: "Kedarkantha", title: "Kedarkantha Trek" },
@@ -34,12 +36,9 @@ const TREK_LIST = {
   ]
 };
 
+const ITEMS_PER_PAGE = 4;
 
 const router = express.Router();
-
-// ✅ This is correctly placed after confirming the session is active.
-// Double-check that no other calls to getSessionObject(from) exist above this block
-// to avoid potential 'Session not found' errors.
 
 function handleInactiveSession(from, lowerInput, input) {
   if (["hi", "hello", "menu"].includes(lowerInput)) {
@@ -94,7 +93,9 @@ router.post("/", async (req, res) => {
       const category = input === "category_trek" ? "Trek" : "Expedition";
       const isEditing = isEditingSession(from);
 
-      saveResponse(from, category, !isEditing);
+      session.data["trekCategory"] = category;
+      session.data["trekPage"] = 1;
+      if (!isEditing) session.stepIndex++;
 
       if (isEditing) {
         session.data.trekName = null;
@@ -148,11 +149,15 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    if (input === "trek_page_next") {
+      session.data.trekPage = (session.data.trekPage || 1) + 1;
+      return await sendTrekList(from, session.data.trekPage, session.data.trekCategory || "Trek");
+    }
+
     if (input.startsWith("edit__")) {
       const field = input.replace("edit__", "");
       setEditStep(from, field);
-      await askNextQuestion(from, field);
-      return res.sendStatus(200);
+      return await askNextQuestion(from, field);
     }
 
     if (input === "confirm_yes") {
@@ -171,13 +176,12 @@ router.post("/", async (req, res) => {
     try {
       step = getCurrentStep(from);
     } catch (e) {
-      await sendText(from, "⚠️ Session expired. Please type *Menu* to start over.");
+      await sendText(from, "⚠️ Step is missing or session is invalid. Please type *Menu* to restart.");
       return res.sendStatus(200);
     }
 
     const isEditing = isEditingSession(from);
 
-    // 🔒 Validation
     if (step === "clientPhone" && !/^\+\d{8,15}$/.test(input)) {
       await sendText(from, "❗ Please enter a valid phone number with country code. Format: +919458118063");
       return res.sendStatus(200);
@@ -203,7 +207,12 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    saveResponse(from, input, !isEditing);
+    if (!isEditing) {
+      saveResponse(from, input);
+    } else {
+      const key = step;
+      session.data[key] = input;
+    }
 
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
       session.data.advancePaid = 0;
@@ -212,26 +221,6 @@ router.post("/", async (req, res) => {
 
     if (isEditing) {
       const data = getSessionData(from);
-
-      if (step === "paymentMode" && input.toLowerCase() === "online") {
-        const steps = [
-          "clientName", "clientPhone", "clientEmail",
-          "trekName", "trekDate", "groupSize", "ratePerPerson",
-          "paymentMode", "advancePaid", "sharingType", "specialNotes"
-        ];
-        const advanceIndex = steps.indexOf("advancePaid");
-        session.stepIndex = advanceIndex;
-        session.editing = true;
-        await askNextQuestion(from, "advancePaid");
-        return res.sendStatus(200);
-      }
-
-      if (step === "advancePaid") {
-        clearEditingFlag(from);
-        await sendSummaryAndConfirm(from, data);
-        return res.sendStatus(200);
-      }
-
       clearEditingFlag(from);
       await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
@@ -253,28 +242,25 @@ router.post("/", async (req, res) => {
   }
 });
 
-
-
-
 async function askNextQuestion(userId, step) {
   if (!step) {
-  await sendText(userId, "⚠️ Step is missing or session is invalid. Please type *Menu* to restart.");
-  return;
-}
+    await sendText(userId, "⚠️ Step is missing or session is invalid. Please type *Menu* to restart.");
+    return;
+  }
   if (step === "clientName") return sendText(userId, "👤 Enter Client's Full Name:");
   if (step === "clientPhone") return sendText(userId, "📞 Enter Client's WhatsApp number with country code (e.g +919458118063):");
   if (step === "clientEmail") return sendText(userId, "📧 Enter Client's Email ID:");
   if (step === "trekCategory") {
-  return sendButtons(userId, "🧭 Choose Trek/Expedition:", [
-    { type: "reply", reply: { id: "category_trek", title: "🥾 Trek" } },
-    { type: "reply", reply: { id: "category_expedition", title: "🏔️ Expedition" } }]);}
-
+    return sendButtons(userId, "🧭 Choose Trek/Expedition:", [
+      { type: "reply", reply: { id: "category_trek", title: "🥾 Trek" } },
+      { type: "reply", reply: { id: "category_expedition", title: "🏔️ Expedition" } }]);
+  }
   if (step === "trekName") {
-  const session = getSessionObject(userId);
-  const category = session.data.trekCategory || "Trek";
-  return sendTrekList(userId, 1, category);
-}
-
+    const session = getSessionObject(userId);
+    const category = session.data.trekCategory || "Trek";
+    const page = session.data.trekPage || 1;
+    return sendTrekList(userId, page, category);
+  }
   if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
     { type: "reply", reply: { id: "today", title: "Today" } },
     { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
@@ -290,21 +276,31 @@ async function askNextQuestion(userId, step) {
     { type: "reply", reply: { id: "Onspot", title: "On-spot" } }
   ]);
 
-return sendText(userId, `✏️ Enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}`);
+  return sendText(userId, `✏️ Enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}`);
 }
 
 async function sendTrekList(userId, page = 1, category = "Trek") {
   const list = TREK_LIST[category] || [];
-  const rows = list.map(trek => ({
+  const start = (page - 1) * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+  const pageItems = list.slice(start, end);
+
+  const rows = pageItems.map(trek => ({
     id: trek.id,
     title: trek.title
   }));
+
+  if (end < list.length) {
+    rows.push({
+      id: "trek_page_next",
+      title: "➡️ More Options"
+    });
+  }
 
   await sendList(userId, `Choose a ${category}:`, [
     { title: `${category} Options`, rows }
   ]);
 }
-
 
 async function sendSummaryAndConfirm(from, data) {
   const groupSize = parseInt(data.groupSize || 0);
@@ -313,20 +309,7 @@ async function sendSummaryAndConfirm(from, data) {
   const total = groupSize * ratePerPerson;
   const balance = total - advancePaid;
 
-  const summary = `🧾 *Booking Summary:*
-• *Client Name:* ${data.clientName}
-• *Client WhatsApp:* ${data.clientPhone}
-• *Client Email:* ${data.clientEmail}
-• *Trek:* ${data.trekName}
-• *Date:* ${data.trekDate}
-• *Group Size:* ${groupSize}
-• *Rate/Person:* ₹${ratePerPerson}
-• *Total:* ₹${total}
-• *Advance Paid:* ₹${advancePaid}
-• *Balance:* ₹${balance}
-• *Sharing:* ${data.sharingType}
-• *Payment Mode:* ${data.paymentMode}
-• *Notes:* ${data.specialNotes || '-'}`;
+  const summary = `🧾 *Booking Summary:*\n• *Client Name:* ${data.clientName}\n• *Client WhatsApp:* ${data.clientPhone}\n• *Client Email:* ${data.clientEmail}\n• *Trek:* ${data.trekName}\n• *Date:* ${data.trekDate}\n• *Group Size:* ${groupSize}\n• *Rate/Person:* ₹${ratePerPerson}\n• *Total:* ₹${total}\n• *Advance Paid:* ₹${advancePaid}\n• *Balance:* ₹${balance}\n• *Sharing:* ${data.sharingType}\n• *Payment Mode:* ${data.paymentMode}\n• *Notes:* ${data.specialNotes || '-'}`;
 
   await sendText(from, summary);
   await sendButtons(from, "👍 Confirm booking?", [
