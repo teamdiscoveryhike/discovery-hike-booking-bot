@@ -103,8 +103,6 @@ if (input === "edit_more") {
     await sendText(from, "⚠️ No active session. Please start a new booking.");
   }
   return res.sendStatus(200);
-}
-
 
     if (input.startsWith("edit__")) {
       const field = input.replace("edit__", "");
