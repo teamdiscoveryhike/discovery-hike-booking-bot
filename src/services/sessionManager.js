@@ -2,6 +2,9 @@
 const sessions = new Map();
 
 const steps = [
+  "clientName",
+  "clientPhone",
+  "clientEmail",
   "trekName",
   "trekDate",
   "groupSize",
