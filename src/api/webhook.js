@@ -55,22 +55,48 @@ router.post("/", async (req, res) => {
       }
     }
 
-    if (input === "edit_booking") {
+   if (input === "edit_booking") {
   try {
     const data = getSessionData(from);
-    const allKeys = Object.keys(data);
+    const keys = Object.keys(data);
 
-    const sections = [];
-    const chunkSize = 10;
+    const firstBatch = keys.slice(0, 9).map(key => ({
+      id: `edit__${key}`,
+      title: key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase())
+    }));
 
-    for (let i = 0; i < allKeys.length; i += chunkSize) {
-      const chunk = allKeys.slice(i, i + chunkSize);
-      const rows = chunk.map(key => ({
-        id: `edit__${key}`,
-        title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-      }));
-      sections.push({ title: `Fields (${i + 1}-${i + rows.length})`, rows });
-    }
+    firstBatch.push({
+      id: "edit_more",
+      title: "➡️ More Options"
+    });
+
+    await sendList(from, "Which field to edit?", [
+      { title: "Editable Fields", rows: firstBatch }
+    ]);
+  } catch (e) {
+    await sendText(from, "⚠️ No active session. Please start a new booking.");
+  }
+  return res.sendStatus(200);
+}
+
+if (input === "edit_more") {
+  try {
+    const data = getSessionData(from);
+    const keys = Object.keys(data);
+    const secondBatch = keys.slice(9).map(key => ({
+      id: `edit__${key}`,
+      title: key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase())
+    }));
+
+    await sendList(from, "More fields to edit:", [
+      { title: "More Fields", rows: secondBatch }
+    ]);
+  } catch (e) {
+    await sendText(from, "⚠️ Unable to show more fields.");
+  }
+  return res.sendStatus(200);
+}
+
 
     await sendList(from, "Which field to edit?", sections);
   } catch (e) {
