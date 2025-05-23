@@ -1,15 +1,19 @@
-import steps from "../utils/steps.js";
 
 const sessions = new Map();
 
+const steps = [
+  "trekName",
+  "trekDate",
+  "groupSize",
+  "ratePerPerson",
+  "paymentMode",
+  "advancePaid",
+  "sharingType",
+  "specialNotes"
+];
+
 export function startSession(userId) {
-  sessions.set(userId, {
-    stepIndex: 0,
-    data: {},
-    editing: false,
-    editingField: null,
-    awaitingFieldSelection: false
-  });
+  sessions.set(userId, { stepIndex: 0, data: {}, editing: false });
   return steps[0];
 }
 
@@ -71,25 +75,7 @@ export function clearEditingFlag(userId) {
   if (session) session.editing = false;
 }
 
-export function getEditingField(userId) {
-  return sessions.get(userId)?.editingField || null;
-}
-
-export function setEditingField(userId, fieldName) {
+export function hasCompletedSession(userId) {
   const session = sessions.get(userId);
-  if (session) session.editingField = fieldName;
-}
-
-export function isAwaitingField(userId) {
-  return sessions.get(userId)?.awaitingFieldSelection || false;
-}
-
-export function setAwaitingField(userId, state) {
-  const session = sessions.get(userId);
-  if (session) session.awaitingFieldSelection = state;
-}
-
-export function logSession(userId) {
-  const session = sessions.get(userId);
-  console.log("Session", userId, JSON.stringify(session, null, 2));
+  return session && session.stepIndex >= steps.length;
 }
