@@ -263,6 +263,10 @@ router.post("/", async (req, res) => {
 
 
 async function askNextQuestion(userId, step) {
+  if (!step) {
+  await sendText(userId, "⚠️ Step is missing or session is invalid. Please type *Menu* to restart.");
+  return;
+}
   if (step === "clientName") return sendText(userId, "👤 Enter Client's Full Name:");
   if (step === "clientPhone") return sendText(userId, "📞 Enter Client's WhatsApp number with country code (e.g +919458118063):");
   if (step === "clientEmail") return sendText(userId, "📧 Enter Client's Email ID:");
@@ -291,7 +295,8 @@ async function askNextQuestion(userId, step) {
     { type: "reply", reply: { id: "Online", title: "Online" } },
     { type: "reply", reply: { id: "Onspot", title: "On-spot" } }
   ]);
-  return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
+
+return sendText(userId, `✏️ Enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}`);
 }
 
 async function sendTrekList(userId, page = 1, category = "Trek") {
