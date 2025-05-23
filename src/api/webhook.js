@@ -50,7 +50,7 @@ router.post("/", async (req, res) => {
       }
       if (input === "start_booking") {
         startSession(from);
-        await sendTrekList(from);
+        await askNextQuestion(from, "clientName");
         return res.sendStatus(200);
       }
     }
@@ -78,13 +78,13 @@ router.post("/", async (req, res) => {
 
     if (input === "confirm_yes") {
       endSession(from);
-      await sendText(from, "✅ Booking confirmed and saved successfully.");
+      await sendText(from, "✅ Booking confirmed and saved successfully. Client will receive confirmation message and Email shortly on WhatsApp and Email respectively.");
       return res.sendStatus(200);
     }
 
     if (input === "confirm_no") {
       endSession(from);
-      await sendText(from, "❌ Booking canceled. Type *menu* to restart.");
+      await sendText(from, "❌ Booking canceled. Type *Menu* to restart.");
       return res.sendStatus(200);
     }
 
@@ -92,11 +92,25 @@ router.post("/", async (req, res) => {
     try {
       step = getCurrentStep(from);
     } catch (e) {
-      await sendText(from, "⚠️ Session expired. Please type *menu* to start over.");
+      await sendText(from, "⚠️ Session expired. Please type *Menu* to start over.");
       return res.sendStatus(200);
     }
 
     const isEditing = isEditingSession(from);
+
+    // 🔒 Validation
+    if (step === "clientPhone" && !/^\+\d{8,15}$/.test(input)) {
+      await sendText(from, "❗ Please enter a valid phone number with country code (e.g. +919458118063)");
+      return res.sendStatus(200);
+    }
+    if (step === "clientEmail" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
+      await sendText(from, "❗ Please enter a valid email address.");
+      return res.sendStatus(200);
+    }
+    if (step === "clientName" && !/^[a-zA-Z\s]{2,}$/.test(input)) {
+      await sendText(from, "❗ Please enter a valid name (letters only).");
+      return res.sendStatus(200);
+    }
 
     if (step === "trekDate") {
       if (input === "today") {
@@ -137,20 +151,19 @@ router.post("/", async (req, res) => {
       if (!isEditing) session.stepIndex++;
     }
 
-    
     if (isEditing) {
       const data = getSessionData(from);
 
-      // Handle paymentMode edit from onspot → online
       if (step === "paymentMode" && input.toLowerCase() === "online") {
         const session = getSessionObject(from);
         const steps = [
+          "clientName", "clientPhone", "clientEmail",
           "trekName", "trekDate", "groupSize", "ratePerPerson",
           "paymentMode", "advancePaid", "sharingType", "specialNotes"
         ];
         const advanceIndex = steps.indexOf("advancePaid");
         session.stepIndex = advanceIndex;
-        session.editing = true; // keep editing flag ON
+        session.editing = true;
         await askNextQuestion(from, "advancePaid");
         return res.sendStatus(200);
       }
@@ -165,7 +178,6 @@ router.post("/", async (req, res) => {
       await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
     }
-    
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
@@ -183,7 +195,11 @@ router.post("/", async (req, res) => {
   }
 });
 
+
 async function askNextQuestion(userId, step) {
+  if (step === "clientName") return sendText(userId, "👤 Enter Client's Full Name:");
+  if (step === "clientPhone") return sendText(userId, "📞 Enter Client's WhatsApp number (10 digits):");
+  if (step === "clientEmail") return sendText(userId, "📧 Enter Client's Email ID:");
   if (step === "trekName") return sendTrekList(userId);
   if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
     { type: "reply", reply: { id: "today", title: "Today" } },
@@ -227,6 +243,9 @@ async function sendSummaryAndConfirm(from, data) {
   const balance = total - advancePaid;
 
   const summary = `🧾 *Booking Summary:*
+• *Client Name:* ${data.clientName}
+• *Client WhatsApp:* ${data.clientPhone}
+• *Client Email:* ${data.clientEmail}
 • *Trek:* ${data.trekName}
 • *Date:* ${data.trekDate}
 • *Group Size:* ${groupSize}
