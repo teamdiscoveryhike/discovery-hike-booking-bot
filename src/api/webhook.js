@@ -37,6 +37,24 @@ const TREK_LIST = {
 
 const router = express.Router();
 
+// ✅ This is correctly placed after confirming the session is active.
+// Double-check that no other calls to getSessionObject(from) exist above this block
+// to avoid potential 'Session not found' errors.
+
+function handleInactiveSession(from, lowerInput, input) {
+  if (["hi", "hello", "menu"].includes(lowerInput)) {
+    return sendButtons(from, "🙏 Welcome to *Discovery Hike Admin Panel*.", [
+      { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
+    ]).then(() => ({ end: true }));
+  }
+  if (input === "start_booking") {
+    startSession(from);
+    return askNextQuestion(from, "clientName").then(() => ({ end: true }));
+  }
+
+  return sendText(from, "⚠️ Session expired. Please type *Menu* to start.").then(() => ({ end: true }));
+}
+
 router.post("/", async (req, res) => {
   try {
     const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -59,6 +77,13 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    const lowerInput = input.toLowerCase();
+
+    if (!isSessionActive(from)) {
+      const { end } = await handleInactiveSession(from, lowerInput, input);
+      if (end) return res.sendStatus(200);
+    }
+
     const session = getSessionObject(from);
     if (session.lastInput === input) {
       return res.sendStatus(200);
@@ -66,11 +91,6 @@ router.post("/", async (req, res) => {
     session.lastInput = input;
 
     if (input === "category_trek" || input === "category_expedition") {
-      if (!isSessionActive(from)) {
-        await sendText(from, "⚠️ Session expired. Please type *Menu* to start a new booking.");
-        return res.sendStatus(200);
-      }
-
       const category = input === "category_trek" ? "Trek" : "Expedition";
       const isEditing = isEditingSession(from);
 
@@ -83,22 +103,6 @@ router.post("/", async (req, res) => {
       }
 
       return await askNextQuestion(from, getCurrentStep(from));
-    }
-
-    const lowerInput = input.toLowerCase();
-
-    if (!isSessionActive(from)) {
-      if (["hi", "hello", "menu"].includes(lowerInput)) {
-        await sendButtons(from, "🙏 Welcome to *Discovery Hike Admin Panel*.", [
-          { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
-        ]);
-        return res.sendStatus(200);
-      }
-      if (input === "start_booking") {
-        startSession(from);
-        await askNextQuestion(from, "clientName");
-        return res.sendStatus(200);
-      }
     }
 
     if (input === "edit_booking") {
