@@ -56,18 +56,29 @@ router.post("/", async (req, res) => {
     }
 
     if (input === "edit_booking") {
-      try {
-        const data = getSessionData(from);
-        const editFields = Object.keys(data).map(key => ({
-          id: `edit__${key}`,
-          title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-        }));
-        await sendList(from, "Which field to edit?", [{ title: "Fields", rows: editFields }]);
-      } catch (e) {
-        await sendText(from, "⚠️ No active session. Please start a new booking.");
-      }
-      return res.sendStatus(200);
+  try {
+    const data = getSessionData(from);
+    const allKeys = Object.keys(data);
+
+    const sections = [];
+    const chunkSize = 10;
+
+    for (let i = 0; i < allKeys.length; i += chunkSize) {
+      const chunk = allKeys.slice(i, i + chunkSize);
+      const rows = chunk.map(key => ({
+        id: `edit__${key}`,
+        title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
+      }));
+      sections.push({ title: `Fields (${i + 1}-${i + rows.length})`, rows });
     }
+
+    await sendList(from, "Which field to edit?", sections);
+  } catch (e) {
+    await sendText(from, "⚠️ No active session. Please start a new booking.");
+  }
+  return res.sendStatus(200);
+}
+
 
     if (input.startsWith("edit__")) {
       const field = input.replace("edit__", "");
@@ -100,7 +111,7 @@ router.post("/", async (req, res) => {
 
     // 🔒 Validation
     if (step === "clientPhone" && !/^\+\d{8,15}$/.test(input)) {
-      await sendText(from, "❗ Please enter a valid phone number with country code (e.g. +919458118063)");
+      await sendText(from, "❗ Please enter a valid phone number with country code. Format: +919458118063");
       return res.sendStatus(200);
     }
     if (step === "clientEmail" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
@@ -198,7 +209,7 @@ router.post("/", async (req, res) => {
 
 async function askNextQuestion(userId, step) {
   if (step === "clientName") return sendText(userId, "👤 Enter Client's Full Name:");
-  if (step === "clientPhone") return sendText(userId, "📞 Enter Client's WhatsApp number (10 digits):");
+  if (step === "clientPhone") return sendText(userId, "📞 Enter Client's WhatsApp number with country code (e.g +919458118063):");
   if (step === "clientEmail") return sendText(userId, "📧 Enter Client's Email ID:");
   if (step === "trekName") return sendTrekList(userId);
   if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
