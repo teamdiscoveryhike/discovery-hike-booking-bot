@@ -19,6 +19,20 @@ import {
   sendButtons,
   sendList
 } from "../services/whatsapp.js";
+const TREK_LIST = {
+  Trek: [
+    { id: "Kedarkantha", title: "Kedarkantha Trek" },
+    { id: "Brahmatal", title: "Brahmatal Trek" },
+    { id: "BaliPass", title: "Bali Pass Trek" },
+    { id: "BorasuPass", title: "Borasu Pass Trek" },
+    { id: "HarKiDun", title: "Har Ki Dun Trek" }
+  ],
+  Expedition: [
+    { id: "BlackPeak", title: "Black Peak Expedition" },
+    { id: "DumdarkandiPass", title: "Dumdarkandi Pass Trek" }
+  ]
+};
+
 
 const router = express.Router();
 
@@ -39,6 +53,22 @@ router.post("/", async (req, res) => {
     }
 
     const input = buttonReply || listReply || text;
+    if (input === "category_trek" || input === "category_expedition") {
+  const category = input === "category_trek" ? "Trek" : "Expedition";
+  const session = getSessionObject(from);
+  const isEditing = isEditingSession(from);
+
+  saveResponse(from, category, !isEditing);
+
+  if (isEditing) {
+    session.data.trekName = null;
+    session.stepIndex = getStepIndex("trekName");
+    return await askNextQuestion(from, "trekName");
+  }
+
+  return await askNextQuestion(from, getCurrentStep(from));
+}
+
     const lowerInput = input.toLowerCase();
 
     if (!isSessionActive(from)) {
@@ -230,7 +260,17 @@ async function askNextQuestion(userId, step) {
   if (step === "clientName") return sendText(userId, "👤 Enter Client's Full Name:");
   if (step === "clientPhone") return sendText(userId, "📞 Enter Client's WhatsApp number with country code (e.g +919458118063):");
   if (step === "clientEmail") return sendText(userId, "📧 Enter Client's Email ID:");
-  if (step === "trekName") return sendTrekList(userId);
+  if (step === "trekCategory") {
+  return sendButtons(userId, "🧭 Choose Trek/Expedition:", [
+    { type: "reply", reply: { id: "category_trek", title: "🥾 Trek" } },
+    { type: "reply", reply: { id: "category_expedition", title: "🏔️ Expedition" } }]);}
+
+  if (step === "trekName") {
+  const session = getSessionObject(userId);
+  const category = session.data.trekCategory || "Trek";
+  return sendTrekList(userId, 1, category);
+}
+
   if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
     { type: "reply", reply: { id: "today", title: "Today" } },
     { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
@@ -248,22 +288,18 @@ async function askNextQuestion(userId, step) {
   return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
 }
 
-async function sendTrekList(userId) {
-  return sendList(userId, "Choose Trek/Expedition:", [
-    {
-      title: "Popular Treks",
-      rows: [
-        { id: "Kedarkantha", title: "Kedarkantha Trek" },
-        { id: "Brahmatal", title: "Brahmatal Trek" },
-        { id: "BaliPass", title: "Bali Pass Trek" },
-        { id: "BlackPeak", title: "Black Peak Expedition" },
-        { id: "BorasuPass", title: "Borasu Pass Trek" },
-        { id: "DumdarkandiPass", title: "Dumdarkandi Pass Trek" },
-        { id: "HarKiDun", title: "Har Ki Dun Trek" }
-      ]
-    }
-  ], "🌄 Select a Trek/Expedition");
+async function sendTrekList(userId, page = 1, category = "Trek") {
+  const list = TREK_LIST[category] || [];
+  const rows = list.map(trek => ({
+    id: trek.id,
+    title: trek.title
+  }));
+
+  await sendList(userId, `Choose a ${category}:`, [
+    { title: `${category} Options`, rows }
+  ]);
 }
+
 
 async function sendSummaryAndConfirm(from, data) {
   const groupSize = parseInt(data.groupSize || 0);
