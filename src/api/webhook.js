@@ -43,7 +43,7 @@ router.post("/", async (req, res) => {
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
-        await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.", [
+        await sendButtons(from, "🙏 Welcome to *Discovery Hike Admin Panel*.", [
           { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
         ]);
         return res.sendStatus(200);
@@ -107,7 +107,7 @@ router.post("/", async (req, res) => {
 
     if (input === "confirm_yes") {
       endSession(from);
-      await sendText(from, "✅ Booking confirmed and saved successfully. Client will receive confirmation message and Email shortly on WhatsApp and Email respectively.");
+      await sendText(from, "✅ Booking confirmed. Client will receive whatsApp and Email Confirmation shortly.");
       return res.sendStatus(200);
     }
 
@@ -234,7 +234,7 @@ async function askNextQuestion(userId, step) {
   if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
     { type: "reply", reply: { id: "today", title: "Today" } },
     { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
-    { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
+    { type: "reply", reply: { id: "manual", title: "Enter" } }
   ]);
   if (step === "sharingType") return sendButtons(userId, "Select Sharing type:", [
     { type: "reply", reply: { id: "Single", title: "Single" } },
@@ -288,10 +288,10 @@ async function sendSummaryAndConfirm(from, data) {
 • *Notes:* ${data.specialNotes || '-'}`;
 
   await sendText(from, summary);
-  await sendButtons(from, "✅ Confirm booking?", [
-    { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
-    { type: "reply", reply: { id: "confirm_no", title: "No" } },
-    { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
+  await sendButtons(from, "👍 Confirm booking?", [
+    { type: "reply", reply: { id: "confirm_yes", title: "✅ Yes" } },
+    { type: "reply", reply: { id: "confirm_no", title: "❌ No" } },
+    { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit" } }
   ]);
 }
 
