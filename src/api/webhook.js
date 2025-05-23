@@ -12,6 +12,7 @@ import {
   isEditingSession,
   clearEditingFlag,
   getSessionObject,
+  getStepIndex,
 } from "../services/sessionManager.js";
 
 import {
