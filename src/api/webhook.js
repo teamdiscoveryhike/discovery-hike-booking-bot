@@ -209,7 +209,27 @@ router.post("/", async (req, res) => {
       }
     }
 
-    saveResponse(from, input, !isEditing);
+    if (!input || input.trim() === "") {
+  await sendText(from, "⚠️ Please enter a valid response.");
+  return res.sendStatus(200);
+}
+if (step === "groupSize" && isNaN(parseInt(input))) {
+  await sendText(from, "❗ Please enter a numeric group size.");
+  return res.sendStatus(200);
+}
+
+if (step === "ratePerPerson" && isNaN(parseInt(input))) {
+  await sendText(from, "❗ Please enter a numeric rate.");
+  return res.sendStatus(200);
+}
+
+if (step === "advancePaid" && isNaN(parseInt(input))) {
+  await sendText(from, "❗ Please enter a valid number for advance paid.");
+  return res.sendStatus(200);
+}
+
+saveResponse(from, input, !isEditing);
+
 
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
       const session = getSessionObject(from);
