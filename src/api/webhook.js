@@ -55,54 +55,48 @@ router.post("/", async (req, res) => {
       }
     }
 
-   if (input === "edit_booking") {
-  try {
-    const data = getSessionData(from);
-    const keys = Object.keys(data);
+    if (input === "edit_booking") {
+      try {
+        const data = getSessionData(from);
+        const keys = Object.keys(data);
 
-    const firstBatch = keys.slice(0, 9).map(key => ({
-      id: `edit__${key}`,
-      title: key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase())
-    }));
+        const firstBatch = keys.slice(0, 9).map(key => ({
+          id: `edit__${key}`,
+          title: key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase())
+        }));
 
-    firstBatch.push({
-      id: "edit_more",
-      title: "➡️ More Options"
-    });
+        firstBatch.push({
+          id: "edit_more",
+          title: "➡️ More Options"
+        });
 
-    await sendList(from, "Which field to edit?", [
-      { title: "Editable Fields", rows: firstBatch }
-    ]);
-  } catch (e) {
-    await sendText(from, "⚠️ No active session. Please start a new booking.");
-  }
-  return res.sendStatus(200);
-}
+        await sendList(from, "Which field to edit?", [
+          { title: "Editable Fields", rows: firstBatch }
+        ]);
+      } catch (e) {
+        await sendText(from, "⚠️ No active session. Please start a new booking.");
+      }
+      return res.sendStatus(200);
+    }
 
-if (input === "edit_more") {
-  try {
-    const data = getSessionData(from);
-    const keys = Object.keys(data);
-    const secondBatch = keys.slice(9).map(key => ({
-      id: `edit__${key}`,
-      title: key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase())
-    }));
+    if (input === "edit_more") {
+      try {
+        const data = getSessionData(from);
+        const keys = Object.keys(data);
 
-    await sendList(from, "More fields to edit:", [
-      { title: "More Fields", rows: secondBatch }
-    ]);
-  } catch (e) {
-    await sendText(from, "⚠️ Unable to show more fields.");
-  }
-  return res.sendStatus(200);
-}
+        const secondBatch = keys.slice(9).map(key => ({
+          id: `edit__${key}`,
+          title: key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase())
+        }));
 
-
-    await sendList(from, "Which field to edit?", sections);
-  } catch (e) {
-    await sendText(from, "⚠️ No active session. Please start a new booking.");
-  }
-  return res.sendStatus(200);
+        await sendList(from, "More fields to edit:", [
+          { title: "More Fields", rows: secondBatch }
+        ]);
+      } catch (e) {
+        await sendText(from, "⚠️ Unable to show more fields.");
+      }
+      return res.sendStatus(200);
+    }
 
     if (input.startsWith("edit__")) {
       const field = input.replace("edit__", "");
@@ -229,6 +223,7 @@ if (input === "edit_more") {
     res.sendStatus(500);
   }
 });
+
 
 
 async function askNextQuestion(userId, step) {
