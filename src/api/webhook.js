@@ -55,6 +55,11 @@ router.post("/", async (req, res) => {
     const input = buttonReply || listReply || text;
     if (!input) return res.sendStatus(200);
     if (input === "category_trek" || input === "category_expedition") {
+      if (!isSessionActive(from)) {
+  await sendText(from, "⚠️ Session expired. Please type *Menu* to start a new booking.");
+  return res.sendStatus(200);
+}
+
   const category = input === "category_trek" ? "Trek" : "Expedition";
   const session = getSessionObject(from);
   const isEditing = isEditingSession(from);
@@ -284,7 +289,7 @@ async function askNextQuestion(userId, step) {
   ]);
   if (step === "paymentMode") return sendButtons(userId, "💳 Payment mode?", [
     { type: "reply", reply: { id: "Online", title: "Online" } },
-    { type: "reply", reply: { id: "onspot", title: "On-spot" } }
+    { type: "reply", reply: { id: "Onspot", title: "On-spot" } }
   ]);
   return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
 }
@@ -320,7 +325,7 @@ async function sendSummaryAndConfirm(from, data) {
 • *Total:* ₹${total}
 • *Advance Paid:* ₹${advancePaid}
 • *Balance:* ₹${balance}
-• *Stay Type:* ${data.sharingType}
+• *Sharing:* ${data.sharingType}
 • *Payment Mode:* ${data.paymentMode}
 • *Notes:* ${data.specialNotes || '-'}`;
 
