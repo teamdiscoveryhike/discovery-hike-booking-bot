@@ -54,27 +54,36 @@ router.post("/", async (req, res) => {
     }
 
     const input = buttonReply || listReply || text;
-    if (!input) return res.sendStatus(200);
+    if (!input || input.trim() === "") {
+      await sendText(from, "⚠️ Please enter a valid response.");
+      return res.sendStatus(200);
+    }
+
+    const session = getSessionObject(from);
+    if (session.lastInput === input) {
+      return res.sendStatus(200);
+    }
+    session.lastInput = input;
+
     if (input === "category_trek" || input === "category_expedition") {
       if (!isSessionActive(from)) {
-  await sendText(from, "⚠️ Session expired. Please type *Menu* to start a new booking.");
-  return res.sendStatus(200);
-}
+        await sendText(from, "⚠️ Session expired. Please type *Menu* to start a new booking.");
+        return res.sendStatus(200);
+      }
 
-  const category = input === "category_trek" ? "Trek" : "Expedition";
-  const session = getSessionObject(from);
-  const isEditing = isEditingSession(from);
+      const category = input === "category_trek" ? "Trek" : "Expedition";
+      const isEditing = isEditingSession(from);
 
-  saveResponse(from, category, !isEditing);
+      saveResponse(from, category, !isEditing);
 
-  if (isEditing) {
-    session.data.trekName = null;
-    session.stepIndex = getStepIndex("trekName");
-    return await askNextQuestion(from, "trekName");
-  }
+      if (isEditing) {
+        session.data.trekName = null;
+        session.stepIndex = getStepIndex("trekName");
+        return await askNextQuestion(from, "trekName");
+      }
 
-  return await askNextQuestion(from, getCurrentStep(from));
-}
+      return await askNextQuestion(from, getCurrentStep(from));
+    }
 
     const lowerInput = input.toLowerCase();
 
@@ -177,62 +186,22 @@ router.post("/", async (req, res) => {
       await sendText(from, "❗ Please enter a valid name (letters only).");
       return res.sendStatus(200);
     }
-
-    if (step === "trekDate") {
-      if (input === "today") {
-        const today = new Date().toISOString().split("T")[0];
-        saveResponse(from, today, !isEditing);
-        if (isEditing) {
-          clearEditingFlag(from);
-          const data = getSessionData(from);
-          await sendSummaryAndConfirm(from, data);
-        } else {
-          await askNextQuestion(from, getCurrentStep(from));
-        }
-        return res.sendStatus(200);
-      } else if (input === "tomorrow") {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const formatted = tomorrow.toISOString().split("T")[0];
-        saveResponse(from, formatted, !isEditing);
-        if (isEditing) {
-          clearEditingFlag(from);
-          const data = getSessionData(from);
-          await sendSummaryAndConfirm(from, data);
-        } else {
-          await askNextQuestion(from, getCurrentStep(from));
-        }
-        return res.sendStatus(200);
-      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-        await sendText(from, "📅 Please enter the date in YYYY-MM-DD format.");
-        return res.sendStatus(200);
-      }
+    if (step === "groupSize" && isNaN(parseInt(input))) {
+      await sendText(from, "❗ Please enter a numeric group size.");
+      return res.sendStatus(200);
+    }
+    if (step === "ratePerPerson" && isNaN(parseInt(input))) {
+      await sendText(from, "❗ Please enter a numeric rate.");
+      return res.sendStatus(200);
+    }
+    if (step === "advancePaid" && isNaN(parseInt(input))) {
+      await sendText(from, "❗ Please enter a valid number for advance paid.");
+      return res.sendStatus(200);
     }
 
-    if (!input || input.trim() === "") {
-  await sendText(from, "⚠️ Please enter a valid response.");
-  return res.sendStatus(200);
-}
-if (step === "groupSize" && isNaN(parseInt(input))) {
-  await sendText(from, "❗ Please enter a numeric group size.");
-  return res.sendStatus(200);
-}
-
-if (step === "ratePerPerson" && isNaN(parseInt(input))) {
-  await sendText(from, "❗ Please enter a numeric rate.");
-  return res.sendStatus(200);
-}
-
-if (step === "advancePaid" && isNaN(parseInt(input))) {
-  await sendText(from, "❗ Please enter a valid number for advance paid.");
-  return res.sendStatus(200);
-}
-
-saveResponse(from, input, !isEditing);
-
+    saveResponse(from, input, !isEditing);
 
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
-      const session = getSessionObject(from);
       session.data.advancePaid = 0;
       if (!isEditing) session.stepIndex++;
     }
@@ -241,7 +210,6 @@ saveResponse(from, input, !isEditing);
       const data = getSessionData(from);
 
       if (step === "paymentMode" && input.toLowerCase() === "online") {
-        const session = getSessionObject(from);
         const steps = [
           "clientName", "clientPhone", "clientEmail",
           "trekName", "trekDate", "groupSize", "ratePerPerson",
@@ -280,6 +248,7 @@ saveResponse(from, input, !isEditing);
     res.sendStatus(500);
   }
 });
+
 
 
 
