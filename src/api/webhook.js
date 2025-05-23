@@ -87,22 +87,21 @@ router.post("/", async (req, res) => {
 
     // PATCH: Lock confirm buttons to summary phase only
     if ((input === "confirm_yes" || input === "confirm_no") && !session.awaitingConfirmation) {
-      await sendText(from, "⚠️ That option is not available now. Please continue the booking.");
-      return res.sendStatus(200);
-    }
+  await sendText(from, "⚠️ That option is not available now. Please continue the booking.");
+  return res.sendStatus(200);
+}
 
-    if (input === "confirm_yes" && session.awaitingConfirmation) {
-      endSession(from);
-      await sendText(from, "✅ Booking confirmed. Client will receive WhatsApp and Email Confirmation shortly.");
-      return res.sendStatus(200);
-    }
+if (input === "confirm_yes" && session.awaitingConfirmation) {
+  endSession(from);
+  await sendText(from, "✅ Booking confirmed. Client will receive WhatsApp and Email Confirmation shortly.");
+  return res.sendStatus(200);
+}
 
-    if (input === "confirm_no" && session.awaitingConfirmation) {
-      endSession(from);
-      await sendText(from, "❌ Booking canceled. Type *Menu* to restart.");
-      return res.sendStatus(200);
-    }
-
+if (input === "confirm_no" && session.awaitingConfirmation) {
+  endSession(from);
+  await sendText(from, "❌ Booking canceled. Type *Menu* to restart.");
+  return res.sendStatus(200);
+}
     if (input === "category_trek" || input === "category_expedition") {
       const category = input === "category_trek" ? "Trek" : "Expedition";
       const isEditing = isEditingSession(from);
@@ -170,30 +169,36 @@ router.post("/", async (req, res) => {
     const isEditing = isEditingSession(from);
 
     if (step === "paymentMode") {
-      const mode = input.toLowerCase();
-      session.data.paymentMode = mode;
-      if (mode === "onspot") {
-        session.data.advancePaid = 0;
-        if (isEditing) {
-          clearEditingFlag(from);
-          session.awaitingConfirmation = true;
-          const data = getSessionData(from);
-          await sendSummaryAndConfirm(from, data);
-        } else {
-          session.stepIndex++; // skip advancePaid
-          await askNextQuestion(from, getCurrentStep(from));
-        }
-        return res.sendStatus(200);
-      } else if (mode === "online") {
-        if (isEditing) {
-          session.stepIndex = getStepIndex("advancePaid");
-          return await askNextQuestion(from, "advancePaid");
-        } else {
-          session.stepIndex++; // move to advancePaid
-          return await askNextQuestion(from, getCurrentStep(from));
-        }
-      }
+  const mode = input.toLowerCase();
+  session.data.paymentMode = mode;
+
+  if (mode === "onspot") {
+    session.data.advancePaid = 0;
+
+    if (isEditing) {
+      clearEditingFlag(from);
+      session.awaitingConfirmation = true;
+      const data = getSessionData(from);
+      await sendSummaryAndConfirm(from, data);
+      return res.sendStatus(200); // ✅ STOP after summary
+    } else {
+      session.stepIndex = getStepIndex("sharingType"); // ✅ SKIP advancePaid
+      await askNextQuestion(from, getCurrentStep(from));
+      return res.sendStatus(200);
     }
+  }
+
+  if (mode === "online") {
+    if (isEditing) {
+      session.stepIndex = getStepIndex("advancePaid");
+      return await askNextQuestion(from, "advancePaid");
+    } else {
+      session.stepIndex++;
+      return await askNextQuestion(from, getCurrentStep(from));
+    }
+  }
+}
+
 
     // Validation
     if (step === "clientPhone" && !/^\+\d{8,15}$/.test(input)) {
@@ -228,12 +233,12 @@ router.post("/", async (req, res) => {
     }
 
     if (isEditing || isSessionComplete(from)) {
-      const data = getSessionData(from);
-      clearEditingFlag(from);
-      session.awaitingConfirmation = true;
-      await sendSummaryAndConfirm(from, data);
-      return res.sendStatus(200);
-    }
+  const data = getSessionData(from);
+  clearEditingFlag(from);
+  session.awaitingConfirmation = true;
+  await sendSummaryAndConfirm(from, data);
+  return res.sendStatus(200); // ✅ STOP after summary
+}
 
     await askNextQuestion(from, getCurrentStep(from));
     return res.sendStatus(200);
