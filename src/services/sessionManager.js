@@ -83,3 +83,6 @@ export function hasCompletedSession(userId) {
   const session = sessions.get(userId);
   return session && session.stepIndex >= steps.length;
 }
+export function getStepIndex(stepKey) {
+  return steps.indexOf(stepKey);
+}
