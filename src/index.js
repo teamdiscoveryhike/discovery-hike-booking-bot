@@ -1,6 +1,7 @@
+// src/index.js
 import express from 'express';
 import dotenv from 'dotenv';
-import webhookRoutes from './routes/webhook.js'; // ✅ Updated path
+import webhookRoutes from './api/webhook.js'; // You'll create this file next
 
 dotenv.config(); // Load environment variables from .env
 
