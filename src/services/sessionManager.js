@@ -26,8 +26,9 @@ export function startSession(userId) {
     lastInput: null
   };
   sessions.set(userId, session);
-  return steps[0];
+  return session;  // ✅ return the full session object, not just steps[0]
 }
+
 
 export function isSessionActive(userId) {
   return sessions.has(userId);
