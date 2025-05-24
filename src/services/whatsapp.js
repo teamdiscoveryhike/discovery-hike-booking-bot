@@ -73,3 +73,22 @@ export async function sendAdminMenu(to) {
     { type: "reply", reply: { id: "assign_vehicle", title: "🚐 Assign Vehicle" } }
   ]);
 }
+
+// ✅ 6. Check if number is on WhatsApp
+export async function checkWhatsappNumber(phone) {
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/contacts`,
+      {
+        blocking: "wait",
+        contacts: [phone]
+      },
+      { headers }
+    );
+
+    return response.data?.contacts?.[0]?.wa_id ? true : false;
+  } catch (err) {
+    console.error("❌ WhatsApp number check failed:", err.response?.data || err.message);
+    return false;
+  }
+}
