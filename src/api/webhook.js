@@ -188,9 +188,13 @@ router.post("/", async (req, res) => {
       }
     }
 
-    if (step === "clientPhone") {
-  const cleaned = input.replace(/[\\s-]/g, '');
-  const isValidPhone = /^\\+\\d{10,15}$/.test(cleaned);
+if (step === "clientPhone") {
+  const cleaned = input
+    .trim()
+    .replace(/[^\d+]/g, '')       // Remove all non-digit/non-plus
+    .replace(/^([^+])/, '+$1')    // Ensure leading + if missing
+
+  const isValidPhone = /^\+\d{10,15}$/.test(cleaned);
 
   if (!isValidPhone) {
     await sendText(from, "⚠️ Please enter a valid phone number *with country code*. Example: +91 98765 43210");
@@ -215,6 +219,7 @@ router.post("/", async (req, res) => {
 
   return res.sendStatus(200);
 }
+
 
 
     if (step === "clientEmail") {
