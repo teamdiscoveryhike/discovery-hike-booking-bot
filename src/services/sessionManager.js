@@ -2,6 +2,10 @@
 const sessions = new Map();
 
 const steps = [
+  "clientName",
+  "clientPhone",
+  "clientEmail",
+  "trekCategory",
   "trekName",
   "trekDate",
   "groupSize",
@@ -11,6 +15,7 @@ const steps = [
   "sharingType",
   "specialNotes"
 ];
+
 
 export function startSession(userId) {
   sessions.set(userId, { stepIndex: 0, data: {}, editing: false });
