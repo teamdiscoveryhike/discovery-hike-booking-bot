@@ -10,7 +10,9 @@ import {
   setEditStep,
   isEditingSession,
   clearEditingFlag,
-  getSessionObject
+  getSessionObject,
+  setEditPage,
+  getEditPage
 } from "../services/sessionManager.js";
 
 import {
@@ -20,6 +22,7 @@ import {
 } from "../services/whatsapp.js";
 
 const router = express.Router();
+
 
 router.post("/", async (req, res) => {
   try {
@@ -37,8 +40,23 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    const input = buttonReply || listReply || text;
+    let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
+
+    // 🔄 Handle pagination navigation for edit menu
+    if (input === "edit_page_next") {
+      const current = getEditPage(from);
+      setEditPage(from, current + 1);
+      await sendText(from, "➡️ Showing next fields...");
+      input = "edit_booking";
+    }
+
+    if (input === "edit_page_prev") {
+      const current = getEditPage(from);
+      setEditPage(from, Math.max(current - 1, 0));
+      await sendText(from, "⬅️ Going back to previous fields...");
+      input = "edit_booking";
+    }
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
@@ -54,14 +72,27 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ✅ PAGINATED EDIT MENU
     if (input === "edit_booking") {
       try {
         const data = getSessionData(from);
-        const editFields = Object.keys(data).map(key => ({
-          id: `edit__${key}`,
-          title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-        }));
-        await sendList(from, "Which field to edit?", [{ title: "Fields", rows: editFields }]);
+        const allFields = Object.keys(data);
+        const currentPage = getEditPage(from);
+        const pageSize = 5;
+        const start = currentPage * pageSize;
+        const end = start + pageSize;
+        const fieldsOnPage = allFields.slice(start, end);
+
+        const rows = fieldsOnPage.map(key => {
+          let title = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
+          if (title.length > 24) title = title.slice(0, 21) + "...";
+          return { id: `edit__${key}`, title };
+        });
+
+        if (end < allFields.length) rows.push({ id: "edit_page_next", title: "➡️ Next Page" });
+        if (start > 0) rows.push({ id: "edit_page_prev", title: "⬅️ Previous Page" });
+
+        await sendList(from, "Which field do you want to edit?", [{ title: "Fields", rows }]);
       } catch (e) {
         await sendText(from, "⚠️ No active session. Please start a new booking.");
       }
@@ -74,6 +105,7 @@ router.post("/", async (req, res) => {
       await askNextQuestion(from, field);
       return res.sendStatus(200);
     }
+
 
     if (input === "confirm_yes") {
       endSession(from);
