@@ -247,6 +247,17 @@ router.post("/", async (req, res) => {
 
     if (isEditing) {
       const data = getSessionData(from);
+
+      // 🛠 Special case: if trekCategory was edited, ask trekName next
+      if (step === "trekCategory") {
+        const session = getSessionObject(from);
+        session.stepIndex = Object.keys(data).indexOf("trekName");
+        session.editing = true;
+        await askNextQuestion(from, "trekName");
+        return res.sendStatus(200);
+      }
+
+      // 🛠 Payment mode special case
       if (step === "paymentMode" && input.toLowerCase() === "online") {
         const session = getSessionObject(from);
         const steps = [
@@ -267,10 +278,12 @@ router.post("/", async (req, res) => {
         return res.sendStatus(200);
       }
 
+      // 🧼 Default: finish edit and return to summary
       clearEditingFlag(from);
       await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
     }
+
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
