@@ -289,15 +289,15 @@ async function sendTrekList(userId) {
 
   const treks = {
     trek: [
-      { id: "Kedarkantha", title: "Kedarkantha Trek" },
-      { id: "Brahmatal", title: "Brahmatal Trek" },
-      { id: "BaliPass", title: "Bali Pass Trek" },
-      { id: "BorasuPass", title: "Borasu Pass Trek" },
-      { id: "HarKiDun", title: "Har Ki Dun Trek" }
+      { id: "Kedarkantha", title: "Kedarkantha" },
+      { id: "Brahmatal", title: "Brahmatal" },
+      { id: "BaliPass", title: "Bali Pass" },
+      { id: "BorasuPass", title: "Borasu Pass" },
+      { id: "HarKiDun", title: "Har Ki Dun" }
     ],
     expedition: [
-      { id: "BlackPeak", title: "Black Peak Expedition" },
-      { id: "DumdarkandiPass", title: "Dumdarkandi Pass Expedition" }
+      { id: "BlackPeak", title: "Black Peak" },
+      { id: "DumdarkandiPass", title: "Dumdarkandi Pass" }
     ]
   };
 
