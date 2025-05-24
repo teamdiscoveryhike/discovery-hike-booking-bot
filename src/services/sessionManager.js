@@ -1,3 +1,4 @@
+// ✅ STEP 1: Update sessionManager.js to support pagination state
 
 const sessions = new Map();
 
@@ -16,10 +17,20 @@ const steps = [
   "specialNotes"
 ];
 
-
 export function startSession(userId) {
-  sessions.set(userId, { stepIndex: 0, data: {}, editing: false });
+  sessions.set(userId, { stepIndex: 0, data: {}, editing: false, editPage: 0 });
   return steps[0];
+}
+
+// 🔄 Add pagination state management for edit list
+export function setEditPage(userId, page = 0) {
+  const session = sessions.get(userId);
+  if (session) session.editPage = page;
+}
+
+export function getEditPage(userId) {
+  const session = sessions.get(userId);
+  return session?.editPage || 0;
 }
 
 export function isSessionActive(userId) {
