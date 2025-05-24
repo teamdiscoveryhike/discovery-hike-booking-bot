@@ -190,8 +190,6 @@ router.post("/", async (req, res) => {
 
 if (step === "clientPhone") {
   const cleaned = input.replace(/[\s-]/g, '');
-
-  // ✅ Must start with '+' and be 10–15 digits long
   const isValidPhone = /^\+\d{10,15}$/.test(cleaned);
 
   if (!isValidPhone) {
@@ -199,11 +197,12 @@ if (step === "clientPhone") {
     return res.sendStatus(200);
   }
 
-  const isWhatsapp = await checkWhatsappNumber(cleaned);
-  if (!isWhatsapp) {
-    await sendText(from, "❌ This number is *not registered on WhatsApp*. Please check and try again.");
-    return res.sendStatus(200);
-  }
+  // 🔕 Sandbox-safe: skip WhatsApp API number check
+  // const isWhatsapp = await checkWhatsappNumber(cleaned);
+  // if (!isWhatsapp) {
+  //   await sendText(from, "❌ This number is *not registered on WhatsApp*. Please check and try again.");
+  //   return res.sendStatus(200);
+  // }
 
   saveResponse(from, cleaned, !isEditing);
 
@@ -217,7 +216,6 @@ if (step === "clientPhone") {
 
   return res.sendStatus(200);
 }
-
 
 
     if (step === "clientEmail") {
