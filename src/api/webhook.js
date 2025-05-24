@@ -18,7 +18,8 @@ import {
 import {
   sendText,
   sendButtons,
-  sendList
+  sendList,
+  checkWhatsappNumber
 } from "../services/whatsapp.js";
 
 const router = express.Router();
@@ -188,13 +189,33 @@ router.post("/", async (req, res) => {
     }
 
     if (step === "clientPhone") {
-      const cleaned = input.replace(/\s+/g, '');
-      const isValidPhone = /^\+?\d{10,15}$/.test(cleaned);
-      if (!isValidPhone) {
-        await sendText(from, "⚠️ Please enter a valid phone number with country code (e.g. +91 98765 43210).");
-        return res.sendStatus(200);
-      }
-    }
+  const cleaned = input.replace(/[\\s-]/g, '');
+  const isValidPhone = /^\\+\\d{10,15}$/.test(cleaned);
+
+  if (!isValidPhone) {
+    await sendText(from, "⚠️ Please enter a valid phone number *with country code*. Example: +91 98765 43210");
+    return res.sendStatus(200);
+  }
+
+  const isWhatsapp = await checkWhatsappNumber(cleaned);
+  if (!isWhatsapp) {
+    await sendText(from, "❌ This number is *not registered on WhatsApp*. Please check and try again.");
+    return res.sendStatus(200);
+  }
+
+  saveResponse(from, cleaned, !isEditing);
+
+  if (isEditing) {
+    clearEditingFlag(from);
+    const data = getSessionData(from);
+    await sendSummaryAndConfirm(from, data);
+  } else {
+    await askNextQuestion(from, getCurrentStep(from));
+  }
+
+  return res.sendStatus(200);
+}
+
 
     if (step === "clientEmail") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
