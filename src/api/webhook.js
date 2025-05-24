@@ -131,35 +131,53 @@ router.post("/", async (req, res) => {
 
     // ✅ TREK DATE OPTIONS
     if (step === "trekDate") {
-      if (input === "today") {
-        const today = new Date().toISOString().split("T")[0];
-        saveResponse(from, today, !isEditing);
-        if (isEditing) {
-          clearEditingFlag(from);
-          const data = getSessionData(from);
-          await sendSummaryAndConfirm(from, data);
-        } else {
-          await askNextQuestion(from, getCurrentStep(from));
-        }
-        return res.sendStatus(200);
-      } else if (input === "tomorrow") {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const formatted = tomorrow.toISOString().split("T")[0];
-        saveResponse(from, formatted, !isEditing);
-        if (isEditing) {
-          clearEditingFlag(from);
-          const data = getSessionData(from);
-          await sendSummaryAndConfirm(from, data);
-        } else {
-          await askNextQuestion(from, getCurrentStep(from));
-        }
-        return res.sendStatus(200);
-      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-        await sendText(from, "📅 Please enter the date in YYYY-MM-DD format.");
-        return res.sendStatus(200);
-      }
+  if (input === "today") {
+    const today = new Date().toISOString().split("T")[0];
+    saveResponse(from, today, !isEditing);
+    if (isEditing) {
+      clearEditingFlag(from);
+      const data = getSessionData(from);
+      await sendSummaryAndConfirm(from, data);
+    } else {
+      await askNextQuestion(from, getCurrentStep(from));
     }
+    return res.sendStatus(200);
+  } else if (input === "tomorrow") {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const formatted = tomorrow.toISOString().split("T")[0];
+    saveResponse(from, formatted, !isEditing);
+    if (isEditing) {
+      clearEditingFlag(from);
+      const data = getSessionData(from);
+      await sendSummaryAndConfirm(from, data);
+    } else {
+      await askNextQuestion(from, getCurrentStep(from));
+    }
+    return res.sendStatus(200);
+  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    await sendText(from, "📅 Please enter the date in *YYYY-MM-DD* format.");
+    return res.sendStatus(200);
+  } else {
+    const [year, month, day] = input.split("-").map(Number);
+    const currentYear = new Date().getFullYear();
+
+    const isValidDate = (y, m, d) => {
+      const date = new Date(y, m - 1, d);
+      return (
+        date.getFullYear() === y &&
+        date.getMonth() === m - 1 &&
+        date.getDate() === d
+      );
+    };
+
+    if (year < currentYear || month > 12 || day > 31 || !isValidDate(year, month, day)) {
+      await sendText(from, "⚠️ Please enter a *valid date* in format YYYY-MM-DD. Example: 2024-12-25");
+      return res.sendStatus(200);
+    }
+  }
+}
+
 
     // ✅ VALIDATIONS
     if (step === "clientName") {
