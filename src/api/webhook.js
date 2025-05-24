@@ -1,4 +1,3 @@
-
 import express from "express";
 import {
   startSession,
@@ -11,7 +10,7 @@ import {
   setEditStep,
   isEditingSession,
   clearEditingFlag,
-  getSessionObject,
+  getSessionObject
 } from "../services/sessionManager.js";
 
 import {
@@ -50,7 +49,7 @@ router.post("/", async (req, res) => {
       }
       if (input === "start_booking") {
         startSession(from);
-        await sendTrekList(from);
+        await askNextQuestion(from, getCurrentStep(from));
         return res.sendStatus(200);
       }
     }
@@ -98,6 +97,7 @@ router.post("/", async (req, res) => {
 
     const isEditing = isEditingSession(from);
 
+    // ✅ TREK DATE OPTIONS
     if (step === "trekDate") {
       if (input === "today") {
         const today = new Date().toISOString().split("T")[0];
@@ -129,6 +129,82 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ✅ VALIDATIONS
+    if (step === "clientName") {
+      if (!input.trim()) {
+        await sendText(from, "⚠️ Client name cannot be empty. Please enter a valid name.");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "clientPhone") {
+      const cleaned = input.replace(/\s+/g, '');
+      const isValidPhone = /^\+?\d{10,15}$/.test(cleaned);
+      if (!isValidPhone) {
+        await sendText(from, "⚠️ Please enter a valid phone number with country code (e.g. +91 98765 43210).");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "clientEmail") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(input)) {
+        await sendText(from, "⚠️ Please enter a valid email address (e.g. example@mail.com).");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "trekCategory") {
+      if (!["trek", "expedition"].includes(input.toLowerCase())) {
+        await sendText(from, "⚠️ Please choose either *Trek* or *Expedition*.");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "groupSize") {
+      if (!/^\d+$/.test(input.trim())) {
+        await sendText(from, "👥 Please enter a valid group size (number only).");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "ratePerPerson") {
+      if (!/^\d+$/.test(input.trim())) {
+        await sendText(from, "💰 Please enter a valid rate per person (number only).");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "paymentMode") {
+      if (!["online", "onspot"].includes(input.toLowerCase())) {
+        await sendText(from, "⚠️ Please choose *Online* or *On-spot* using buttons.");
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "advancePaid") {
+      if (!/^\d+$/.test(input.trim())) {
+        await sendText(from, "💵 Please enter a valid advance amount (number only).");
+        return res.sendStatus(200);
+      }
+      const session = getSessionObject(from);
+      const groupSize = parseInt(session.data.groupSize || 0);
+      const rate = parseInt(session.data.ratePerPerson || 0);
+      const total = groupSize * rate;
+      const advance = parseInt(input);
+      if (advance > total) {
+        await sendText(from, `⚠️ Advance cannot exceed total (₹${total}). Please re-enter.`);
+        return res.sendStatus(200);
+      }
+    }
+
+    if (step === "sharingType") {
+      if (!["single", "double", "triple"].includes(input.toLowerCase())) {
+        await sendText(from, "⚠️ Please select *Single*, *Double*, or *Triple* from the options.");
+        return res.sendStatus(200);
+      }
+    }
+
     saveResponse(from, input, !isEditing);
 
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
@@ -137,20 +213,18 @@ router.post("/", async (req, res) => {
       if (!isEditing) session.stepIndex++;
     }
 
-    
     if (isEditing) {
       const data = getSessionData(from);
-
-      // Handle paymentMode edit from onspot → online
       if (step === "paymentMode" && input.toLowerCase() === "online") {
         const session = getSessionObject(from);
         const steps = [
+          "clientName", "clientPhone", "clientEmail", "trekCategory",
           "trekName", "trekDate", "groupSize", "ratePerPerson",
           "paymentMode", "advancePaid", "sharingType", "specialNotes"
         ];
         const advanceIndex = steps.indexOf("advancePaid");
         session.stepIndex = advanceIndex;
-        session.editing = true; // keep editing flag ON
+        session.editing = true;
         await askNextQuestion(from, "advancePaid");
         return res.sendStatus(200);
       }
@@ -165,7 +239,6 @@ router.post("/", async (req, res) => {
       await sendSummaryAndConfirm(from, data);
       return res.sendStatus(200);
     }
-    
 
     if (isSessionComplete(from)) {
       const data = getSessionData(from);
@@ -176,6 +249,7 @@ router.post("/", async (req, res) => {
 
     await askNextQuestion(from, getCurrentStep(from));
     res.sendStatus(200);
+
   } catch (error) {
     console.error("❌ webhook error:", error.message);
     await sendText(req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from, "❌ Internal error. Please try again.");
@@ -184,13 +258,20 @@ router.post("/", async (req, res) => {
 });
 
 async function askNextQuestion(userId, step) {
+  if (step === "clientName") return sendText(userId, "👤 Enter *Client Name*:");
+  if (step === "clientPhone") return sendText(userId, "📞 Enter *Client Phone Number*:");
+  if (step === "clientEmail") return sendText(userId, "📧 Enter *Client Email Address*:");
+  if (step === "trekCategory") return sendButtons(userId, "🏔 Select *Trek Category*:", [
+    { type: "reply", reply: { id: "Trek", title: "Trek" } },
+    { type: "reply", reply: { id: "Expedition", title: "Expedition" } }
+  ]);
   if (step === "trekName") return sendTrekList(userId);
   if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
     { type: "reply", reply: { id: "today", title: "Today" } },
     { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
     { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
   ]);
-  if (step === "sharingType") return sendButtons(userId, "Select Sharing type:", [
+  if (step === "sharingType") return sendButtons(userId, "🏠 Select *Sharing Type*:", [
     { type: "reply", reply: { id: "Single", title: "Single" } },
     { type: "reply", reply: { id: "Double", title: "Double" } },
     { type: "reply", reply: { id: "Triple", title: "Triple" } }
@@ -199,24 +280,36 @@ async function askNextQuestion(userId, step) {
     { type: "reply", reply: { id: "Online", title: "Online" } },
     { type: "reply", reply: { id: "onspot", title: "On-spot" } }
   ]);
-  return sendText(userId, `Please enter ${step.replace(/([A-Z])/g, " $1").toLowerCase()}:`);
+  return sendText(userId, `✍️ Please enter *${step.replace(/([A-Z])/g, " $1").toLowerCase()}*:`); // default
 }
 
 async function sendTrekList(userId) {
-  return sendList(userId, "Choose Trek/Expedition:", [
+  const session = getSessionObject(userId);
+  const category = (session.data.trekCategory || "").toLowerCase();
+
+  const treks = {
+    trek: [
+      { id: "Kedarkantha", title: "Kedarkantha Trek" },
+      { id: "Brahmatal", title: "Brahmatal Trek" },
+      { id: "BaliPass", title: "Bali Pass Trek" },
+      { id: "BorasuPass", title: "Borasu Pass Trek" },
+      { id: "HarKiDun", title: "Har Ki Dun Trek" }
+    ],
+    expedition: [
+      { id: "BlackPeak", title: "Black Peak Expedition" },
+      { id: "DumdarkandiPass", title: "Dumdarkandi Pass Expedition" }
+    ]
+  };
+
+  const listToShow = treks[category] || [];
+  const sections = [
     {
-      title: "Popular Treks",
-      rows: [
-        { id: "Kedarkantha", title: "Kedarkantha Trek" },
-        { id: "Brahmatal", title: "Brahmatal Trek" },
-        { id: "BaliPass", title: "Bali Pass Trek" },
-        { id: "BlackPeak", title: "Black Peak Expedition" },
-        { id: "BorasuPass", title: "Borasu Pass Trek" },
-        { id: "DumdarkandiPass", title: "Dumdarkandi Pass Trek" },
-        { id: "HarKiDun", title: "Har Ki Dun Trek" }
-      ]
+      title: `Available ${category.charAt(0).toUpperCase() + category.slice(1)}s`,
+      rows: listToShow
     }
-  ], "🌄 Select a Trek/Expedition");
+  ];
+
+  return sendList(userId, `🌄 Select a ${category === "expedition" ? "Expedition" : "Trek"}:`, sections);
 }
 
 async function sendSummaryAndConfirm(from, data) {
@@ -227,6 +320,10 @@ async function sendSummaryAndConfirm(from, data) {
   const balance = total - advancePaid;
 
   const summary = `🧾 *Booking Summary:*
+• *Client Name:* ${data.clientName}
+• *Phone:* ${data.clientPhone}
+• *Email:* ${data.clientEmail}
+• *Trek Category:* ${data.trekCategory}
 • *Trek:* ${data.trekName}
 • *Date:* ${data.trekDate}
 • *Group Size:* ${groupSize}
@@ -234,7 +331,7 @@ async function sendSummaryAndConfirm(from, data) {
 • *Total:* ₹${total}
 • *Advance Paid:* ₹${advancePaid}
 • *Balance:* ₹${balance}
-• *Stay Type:* ${data.sharingType}
+• *Sharing:* ${data.sharingType}
 • *Payment Mode:* ${data.paymentMode}
 • *Notes:* ${data.specialNotes || '-'}`;
 
