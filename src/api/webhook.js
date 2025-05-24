@@ -134,17 +134,11 @@ router.post("/", async (req, res) => {
       if (input === "today") {
         const today = new Date().toISOString().split("T")[0];
         saveResponse(from, today, !isEditing);
-        if (isEditing && step === "trekCategory") {
-  // Manually re-ask trekName, but keep editing flow
-  const session = getSessionObject(from);
-  const steps = Object.keys(session.data);
-  const trekNameIndex = steps.indexOf("trekName");
-  session.stepIndex = trekNameIndex;
-  session.editing = true;
-  await askNextQuestion(from, "trekName");
-  return res.sendStatus(200);
-}
- else {
+        if (isEditing) {
+          clearEditingFlag(from);
+          const data = getSessionData(from);
+          await sendSummaryAndConfirm(from, data);
+        } else {
           await askNextQuestion(from, getCurrentStep(from));
         }
         return res.sendStatus(200);
