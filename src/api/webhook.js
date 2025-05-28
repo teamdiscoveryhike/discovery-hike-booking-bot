@@ -289,20 +289,33 @@ if (step === "clientPhone") {
     }
 
     if (step === "advancePaid") {
-      if (!/^\d+$/.test(input.trim())) {
-        await sendText(from, "💵 Please enter a valid advance amount (number only).");
-        return res.sendStatus(200);
-      }
-      const session = getSessionObject(from);
-      const groupSize = parseInt(session.data.groupSize || 0);
-      const rate = parseInt(session.data.ratePerPerson || 0);
-      const total = groupSize * rate;
-      const advance = parseInt(input);
-      if (advance > total) {
-        await sendText(from, `⚠️ Advance cannot exceed total (₹${total}). Please re-enter.`);
-        return res.sendStatus(200);
-      }
+  if (!/^\d+$/.test(input.trim())) {
+    await sendText(from, "💵 Please enter a valid advance amount (number only).");
+    return res.sendStatus(200);
+  }
+
+  const session = getSessionObject(from);
+  const groupSize = parseInt(session.data.groupSize || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
+  const total = groupSize * rate;
+  const advance = parseInt(input);
+
+  if (advance > total) {
+    await sendText(from, `⚠️ Advance cannot exceed total (₹${total}). Please re-enter.`);
+    return res.sendStatus(200);
+  }
+
+  // 🛠 Fix: Handle Onspot edge case
+  if (session.data.paymentMode === 'onspot') {
+    if (advance > 0) {
+      session.data.paymentMode = 'online';
+      await sendText(from, "ℹ️ Payment mode has been automatically changed to *Online* because advance was entered.");
+    } else {
+      await sendText(from, "ℹ️ You selected *Onspot* earlier. Advance will be kept as ₹0.");
     }
+  }
+}
+
 
     if (step === "sharingType") {
       if (!["single", "double", "triple"].includes(input.toLowerCase())) {
