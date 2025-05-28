@@ -21,6 +21,7 @@ import {
   sendList,
   checkWhatsappNumber
 } from "../services/whatsapp.js";
+import supabase from "../services/supabase.js";
 
 const router = express.Router();
 
@@ -108,11 +109,44 @@ router.post("/", async (req, res) => {
     }
 
 
-    if (input === "confirm_yes") {
-      endSession(from);
-      await sendText(from, "✅ Booking confirmed and saved successfully.");
-      return res.sendStatus(200);
-    }
+ if (input === "confirm_yes") {
+  const data = getSessionData(from);
+  const groupSize = parseInt(data.groupSize || 0);
+  const rate = parseInt(data.ratePerPerson || 0);
+  const total = groupSize * rate;
+  const advance = parseInt(data.advancePaid || 0);
+  const balance = total - advance;
+
+  const bookingData = {
+    client_name: data.clientName,
+    client_phone: data.clientPhone,
+    client_email: data.clientEmail,
+    trek_category: data.trekCategory,
+    trek_name: data.trekName,
+    trek_date: data.trekDate,
+    group_size: groupSize,
+    rate_per_person: rate,
+    total: total,
+    advance_paid: advance,
+    balance: balance,
+    payment_mode: data.paymentMode,
+    sharing_type: data.sharingType,
+    special_notes: data.specialNotes || "-",
+    status: "confirmed"
+  };
+
+  try {
+    const bookingCode = await insertBookingWithCode(bookingData);
+    await sendText(from, `✅ Booking confirmed!\n📌 Booking ID: ${bookingCode}`);
+  } catch (error) {
+    console.error("❌ Booking insert failed:", error.message);
+    await sendText(from, "❌ Booking failed to save. Please try again or contact admin.");
+  }
+
+  endSession(from);
+  return res.sendStatus(200);
+}
+
 
     if (input === "confirm_no") {
       endSession(from);
@@ -426,6 +460,36 @@ async function sendSummaryAndConfirm(from, data) {
     { type: "reply", reply: { id: "confirm_no", title: "No" } },
     { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
   ]);
+}
+function generateBookingCode() {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // last 2 digits
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+  const day = String(now.getDate()).padStart(2, '0'); // DD
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+  let randomPart = '';
+  for (let i = 0; i < 5; i++) {
+    randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  return `DH${year}${randomPart}${month}${day}`;
+}
+async function insertBookingWithCode(data) {
+  let retries = 0;
+  while (retries < 5) {
+    const bookingCode = generateBookingCode();
+    const { error } = await supabase.from("bookings").insert([
+      { booking_code: bookingCode, ...data }
+    ]);
+    if (!error) return bookingCode;
+    if (error.code === '23505') {
+      retries++;
+    } else {
+      throw error;
+    }
+  }
+  throw new Error("❌ Failed to generate a unique booking code.");
 }
 
 export default router;
