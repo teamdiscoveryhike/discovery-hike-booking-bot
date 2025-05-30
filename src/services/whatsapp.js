@@ -92,3 +92,28 @@ export async function checkWhatsappNumber(phone) {
     return false;
   }
 }
+export async function sendBookingTemplate(to, variables) {
+  try {
+    await axios.post(WHATSAPP_API_URL, {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: "adventure_booking_confirm",
+        language: { code: "en" },
+        components: [
+          {
+            type: "body",
+            parameters: variables.map(text => ({
+              type: "text",
+              text
+            }))
+          }
+        ]
+      }
+    }, { headers });
+  } catch (err) {
+    console.error("❌ sendBookingTemplate error:", err.response?.data || err.message);
+  }
+}
+
