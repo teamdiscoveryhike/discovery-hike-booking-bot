@@ -99,7 +99,7 @@ export async function sendBookingTemplate(to, variables) {
       to,
       type: "template",
       template: {
-        name: "adventure_booking_confirm",
+        name: "booking_confirmation",
         language: { code: "en" },
         components: [
           {
