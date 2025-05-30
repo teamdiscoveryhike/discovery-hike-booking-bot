@@ -19,7 +19,8 @@ import {
   sendText,
   sendButtons,
   sendList,
-  checkWhatsappNumber
+  checkWhatsappNumber,
+  sendBookingTemplate
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 
@@ -137,7 +138,21 @@ router.post("/", async (req, res) => {
 
   try {
     const bookingCode = await insertBookingWithCode(bookingData);
+
+    // ✅ Keep internal team message the same
     await sendText(from, `✅ Booking confirmed!\n📌 Booking ID: ${bookingCode}`);
+
+    // ✅ Send template confirmation to client
+    await sendBookingTemplate(data.clientPhone, [
+      data.clientName,
+      bookingCode,
+      data.trekName,
+      data.trekDate,
+      String(groupSize),
+      String(advance),
+      String(balance)
+    ]);
+
   } catch (error) {
     console.error("❌ Booking insert failed:", error.message);
     await sendText(from, "❌ Booking failed to save. Please try again or contact admin.");
@@ -146,6 +161,7 @@ router.post("/", async (req, res) => {
   endSession(from);
   return res.sendStatus(200);
 }
+
 
 
     if (input === "confirm_no") {
