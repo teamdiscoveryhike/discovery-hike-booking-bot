@@ -177,7 +177,7 @@ if (type === "search" && step === "lookup") {
   }
 
   // === SHARE FLOW WITH OTP ===
-  if (type === "share") {
+ if (type === "share") {
   if (step === "holder_contact") {
     const isPhone = /^\+\d{10,15}$/.test(input);
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
@@ -227,52 +227,35 @@ if (type === "search" && step === "lookup") {
     });
     await sendText(from, summary.trim());
 
-    // ✅ Then show WhatsApp list menu
-    const sections = [
-      {
-        title: "Select a Voucher to Share",
-        rows: vouchers.slice(0, 10).map(v => {
-          const date = new Date(v.expiry_date).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-            year: "numeric"
-          });
-          return {
-            id: `share__${v.id}`,
-            title: `₹${v.amount} | ${v.code}`.slice(0, 24),
-            description: `Expires: ${date}`
-          };
-        })
-      }
-    ];
+   saveVoucherStep(from, "voucher_choices", vouchers);
+setVoucherStep(from, "select_voucher");
+await sendText(from, "✏️ Please reply with the number of the voucher you want to use (e.g. 1, 2, 3...)");
 
-    saveVoucherStep(from, "voucher_choices", vouchers);
-    setVoucherStep(from, "select_voucher");
-
-    await sendList(from, "👇 Select one to proceed with sharing", sections);
     return true;
   }
 
-  if (step === "select_voucher" && input.startsWith("share__")) {
-    const selectedId = input.replace("share__", "");
-    const all = getVoucherData(from).voucher_choices;
-    const selected = all.find(v => v.id === selectedId);
+  if (step === "select_voucher") {
+  const choices = getVoucherData(from).voucher_choices;
 
-    if (!selected) {
-      await sendText(from, "❌ Invalid selection. Please try again.");
-      return true;
-    }
-
-    saveVoucherStep(from, "voucher_id", selected.id);
-
-    const otp = generateOtp();
-    saveOtp(from, otp, "holder");
-    setVoucherStep(from, "verify_holder_otp");
-
-    await sendText(getVoucherData(from).holder, `🔐 Your OTP is: *${otp}*`);
-    await sendText(from, "📨 OTP sent to holder. Please enter it here:");
+const cleaned = input.trim().replace(/[^\d]/g, "");
+const index = parseInt(cleaned, 10);
+  if (isNaN(index) || index < 1 || index > choices.length) {
+    await sendText(from, `❌ Invalid selection. Please enter a number between 1 and ${choices.length}.`);
     return true;
   }
+
+  const selected = choices[index - 1];
+  saveVoucherStep(from, "voucher_id", selected.id);
+
+  const otp = generateOtp();
+  saveOtp(from, otp, "holder");
+  setVoucherStep(from, "verify_holder_otp");
+
+  await sendText(getVoucherData(from).holder, `🔐 Your OTP is: *${otp}*`);
+  await sendText(from, "📨 OTP sent to holder. Please enter it here:");
+  return true;
+}
+
 
   if (step === "verify_holder_otp") {
     if (input.trim() !== getOtp(from, "holder")) {
