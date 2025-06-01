@@ -207,7 +207,7 @@ export async function handleVoucherFlow(input, from) {
       }
 
       setVoucherStep(from, "recipient_contact");
-      await sendText(from, "✅ Holder verified.\n📱 Now enter recipient's phone or email:");
+      await sendText(from, "✅ Holder verified.\n📱 Now enter recipient's WhatsApp No:");
       return true;
     }
 
