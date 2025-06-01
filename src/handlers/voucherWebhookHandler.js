@@ -14,7 +14,7 @@ import {
   cancelVoucherSession
 } from "../services/voucherSessionManager.js";
 
-import { sendText, sendList, sendButtons } from "../services/whatsapp.js";
+import { sendText, sendButtons } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 
 function generateVoucherCode() {
