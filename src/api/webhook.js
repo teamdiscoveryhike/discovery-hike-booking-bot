@@ -23,6 +23,7 @@ import {
   sendBookingTemplate
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
+import { handleVoucherFlow } from "../handlers/voucherWebhookHandler.js";
 
 const router = express.Router();
 
@@ -45,6 +46,10 @@ router.post("/", async (req, res) => {
 
     let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
+    
+    // 🔁 Voucher flow: delegate externally
+const handledByVoucher = await handleVoucherFlow(input, from);
+if (handledByVoucher) return res.sendStatus(200);
 
     // 🔄 Handle pagination navigation for edit menu
     if (input === "edit_page_next") {
@@ -64,7 +69,8 @@ router.post("/", async (req, res) => {
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
         await sendButtons(from, "✅ Welcome to *Discovery Hike Admin Panel*.", [
-          { type: "reply", reply: { id: "start_booking", title: "✍️ New Booking" } }
+          { type: "reply", reply: { id: "start_booking", title: "✍️ New Booking" } },
+          { type: "reply", reply: { id: "manual_voucher", title: "🎟️ Manual Voucher" } }
         ]);
         return res.sendStatus(200);
       }
