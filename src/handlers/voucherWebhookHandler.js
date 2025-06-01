@@ -35,7 +35,7 @@ export async function handleVoucherFlow(input, from) {
 
   if (lowerInput === "manual_voucher") {
     cancelVoucherSession(from);
-    await sendButtons(from, "🎟️ Manual Voucher – Choose an action", [
+    await sendButtons(from, "🎟️ *Manual Voucher*", [
       { type: "reply", reply: { id: "voucher_generate", title: "📄 Generate" } },
       { type: "reply", reply: { id: "voucher_search", title: "🔍 Search" } },
       { type: "reply", reply: { id: "voucher_share", title: "🔁 Share" } }
@@ -57,7 +57,7 @@ export async function handleVoucherFlow(input, from) {
 
   if (input === "voucher_share") {
     startVoucherSession(from, "share");
-    await sendText(from, "🔁 Enter current holder's phone or email:");
+    await sendText(from, "🔁 Enter current holder's WhatsApp No:");
     return true;
   }
 
@@ -163,7 +163,7 @@ export async function handleVoucherFlow(input, from) {
       if (error) {
         await sendText(from, "❌ Error saving voucher. Try again.");
       } else {
-        await sendText(from, `✅ Voucher created!\n\n🎟️ Code: *${voucher.code}*\n💰 Amount: ₹${voucher.amount}\n📅 Expiry: ${voucher.expiry_date}`);
+        await sendText(from, `✅ *Voucher created!*\n\n🎟️ Code: *${voucher.code}*\n💰 Amount: ₹${voucher.amount}\n📅 Expiry: ${voucher.expiry_date}`);
       }
 
       endVoucherSession(from);
