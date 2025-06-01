@@ -46,6 +46,14 @@ router.post("/", async (req, res) => {
 
     let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
+    // 🔐 Emergency Session Kill Trigger
+if (["xxx", "kill"].includes(lowerInput)) {
+  endSession?.(from);              // Kills booking session
+  cancelVoucherSession?.(from);    // Kills voucher session
+  await sendText(from, "🛑 Session forcefully reset. Type *menu* to start again.");
+  return res.sendStatus(200);
+}
+
     
     // 🔁 Voucher flow: delegate externally
 const handledByVoucher = await handleVoucherFlow(input, from);
