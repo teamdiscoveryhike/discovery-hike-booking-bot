@@ -69,31 +69,40 @@ export async function handleVoucherFlow(input, from) {
 
   // === SEARCH FLOW ===
   if (type === "search" && step === "lookup") {
-    const isPhone = /^\+\d{10,15}$/.test(input);
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+  const isPhone = /^\+\d{10,15}$/.test(input);
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
 
-    if (!isPhone && !isEmail) {
-      await sendText(from, "⚠️ Please enter a valid phone (with +) or email.");
-      return true;
-    }
-
-    const field = isPhone ? "phone" : "email";
-    const { data: vouchers } = await supabase
-      .from("vouchers")
-      .select("*")
-      .eq(field, input)
-      .order("created_at", { ascending: false });
-
-    if (vouchers?.length) {
-      const v = vouchers[0];
-      await sendText(from, `🎟️ *Voucher Found*:\nCode: ${v.code}\nAmount: ₹${v.amount}\nExpires: ${v.expiry_date}`);
-    } else {
-      await sendText(from, "❌ No voucher found for this contact.");
-    }
-
-    endVoucherSession(from);
+  if (!isPhone && !isEmail) {
+    await sendText(from, "⚠️ Please enter a valid phone (with +) or email.");
     return true;
   }
+
+  const field = isPhone ? "phone" : "email";
+  const { data: vouchers } = await supabase
+    .from("vouchers")
+    .select("*")
+    .eq(field, input)
+    .order("created_at", { ascending: false });
+
+  if (vouchers?.length) {
+    let message = `🎟️ *${vouchers.length} Voucher(s) Found*:\n\n`;
+
+    for (const v of vouchers) {
+      const rawDate = new Date(v.expiry_date);
+      const formattedDate = `${String(rawDate.getDate()).padStart(2, '0')}/${String(rawDate.getMonth() + 1).padStart(2, '0')}/${rawDate.getFullYear()}`;
+
+      message += `• Code: ${v.code}\n  Amount: ₹${v.amount}\n  Expires: ${formattedDate}\n  Used: ${v.used ? "✅ Yes" : "❌ No"}\n\n`;
+    }
+
+    await sendText(from, message.trim());
+  } else {
+    await sendText(from, "❌ No voucher found for this contact.");
+  }
+
+  endVoucherSession(from);
+  return true;
+}
+
 
   // === GENERATE FLOW ===
   if (type === "generate") {
