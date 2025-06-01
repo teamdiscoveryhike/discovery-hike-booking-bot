@@ -68,7 +68,7 @@ export async function handleVoucherFlow(input, from) {
   const data = getVoucherData(from);
 
   // === SEARCH FLOW ===
-  if (type === "search" && step === "lookup") {
+if (type === "search" && step === "lookup") {
   const isPhone = /^\+\d{10,15}$/.test(input);
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
 
@@ -89,7 +89,11 @@ export async function handleVoucherFlow(input, from) {
 
     for (const v of vouchers) {
       const rawDate = new Date(v.expiry_date);
-      const formattedDate = `${String(rawDate.getDate()).padStart(2, '0')}/${String(rawDate.getMonth() + 1).padStart(2, '0')}/${rawDate.getFullYear()}`;
+      const formattedDate = rawDate.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      });
 
       message += `• Code: ${v.code}\n  Amount: ₹${v.amount}\n  Expires: ${formattedDate}\n  Used: ${v.used ? "✅ Yes" : "❌ No"}\n\n`;
     }
@@ -102,6 +106,7 @@ export async function handleVoucherFlow(input, from) {
   endVoucherSession(from);
   return true;
 }
+
 
 
   // === GENERATE FLOW ===
