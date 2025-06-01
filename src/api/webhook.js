@@ -39,7 +39,7 @@ router.post("/", async (req, res) => {
 
     const allowedNumbers = process.env.ALLOWED_TEAM_NUMBERS?.split(",") || [];
     if (!allowedNumbers.includes(from)) {
-      await sendText(from, "⛔ You are not authorized to use this booking bot.");
+      await sendText(from, "⛔ You are not authorized to use this System bot.");
       return res.sendStatus(200);
     }
 
@@ -63,8 +63,8 @@ router.post("/", async (req, res) => {
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
-        await sendButtons(from, "👋 Welcome to *Discovery Hike Admin Panel*.", [
-          { type: "reply", reply: { id: "start_booking", title: "📌 New Booking" } }
+        await sendButtons(from, "✅ Welcome to *Discovery Hike Admin Panel*.", [
+          { type: "reply", reply: { id: "start_booking", title: "✍️ New Booking" } }
         ]);
         return res.sendStatus(200);
       }
@@ -140,7 +140,7 @@ router.post("/", async (req, res) => {
     const bookingCode = await insertBookingWithCode(bookingData);
 
     // ✅ Keep internal team message the same
-    await sendText(from, `✅ Booking confirmed!\n📌 Booking ID: ${bookingCode}`);
+    await sendText(from, `✅ Booking confirmed!\n🆔 Booking ID: ${bookingCode}`);
 
     // ✅ Send template confirmation to client
     await sendBookingTemplate(data.clientPhone, [
