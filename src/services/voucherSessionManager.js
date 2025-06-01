@@ -1,12 +1,15 @@
 // services/voucherSessionManager.js
 
-const voucherSessions = {}; // session memory
+const voucherSessions = {}; // In-memory store
 
-const steps = ["phone", "email", "amount", "expiry_date"];
-
-export function startVoucherSession(userId) {
+export function startVoucherSession(userId, type = "generate") {
   voucherSessions[userId] = {
-    step: "phone",
+    type,
+    step: type === "generate"
+      ? "phone"
+      : type === "search"
+      ? "lookup"
+      : "holder_contact",
     data: {},
     startedAt: Date.now()
   };
@@ -14,6 +17,10 @@ export function startVoucherSession(userId) {
 
 export function isVoucherSession(userId) {
   return Boolean(voucherSessions[userId]);
+}
+
+export function getVoucherType(userId) {
+  return voucherSessions[userId]?.type;
 }
 
 export function getVoucherStep(userId) {
@@ -27,10 +34,19 @@ export function getVoucherData(userId) {
 export function saveVoucherStep(userId, field, value) {
   if (!voucherSessions[userId]) return;
   voucherSessions[userId].data[field] = value;
+}
 
-  const currentIndex = steps.indexOf(field);
-  const nextStep = steps[currentIndex + 1];
-  voucherSessions[userId].step = nextStep;
+export function saveOtp(userId, otp, forWhom = "holder") {
+  if (!voucherSessions[userId]) return;
+  voucherSessions[userId].data[`${forWhom}_otp`] = otp;
+}
+
+export function getOtp(userId, forWhom = "holder") {
+  return voucherSessions[userId]?.data[`${forWhom}_otp`] || null;
+}
+
+export function setVoucherStep(userId, step) {
+  if (voucherSessions[userId]) voucherSessions[userId].step = step;
 }
 
 export function endVoucherSession(userId) {
