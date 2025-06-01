@@ -14,6 +14,7 @@ import {
   setEditPage,
   getEditPage
 } from "../services/sessionManager.js";
+import { cancelVoucherSession } from "../services/voucherSessionManager.js";
 
 import {
   sendText,
