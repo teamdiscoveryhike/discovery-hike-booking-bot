@@ -68,7 +68,7 @@ if (handledByVoucher) return res.sendStatus(200);
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
-        await sendButtons(from, "✅ Welcome to *Discovery Hike Admin Panel*.", [
+        await sendButtons(from, "*Discovery Hike\nBooking Bot*", [
           { type: "reply", reply: { id: "start_booking", title: "✍️ New Booking" } },
           { type: "reply", reply: { id: "manual_voucher", title: "🎟️ Manual Voucher" } }
         ]);

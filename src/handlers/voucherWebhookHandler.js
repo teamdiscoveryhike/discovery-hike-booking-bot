@@ -23,7 +23,9 @@ function generateVoucherCode() {
 export async function handleVoucherFlow(input, from) {
   if (input === "manual_voucher") {
     startVoucherSession(from);
-    await sendText(from, "🎟️ Let's create a manual voucher.\n\n📱 Enter phone number (with +91):");
+    await sendText(from, "🎟️ Let's create a manual voucher.");
+    await sendText(from, "📱 Enter phone number (with +91):");
+
     return true;
   }
 
