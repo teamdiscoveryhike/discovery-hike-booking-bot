@@ -432,6 +432,7 @@ await sendList(from, "🎟️ Choose a voucher to apply:", [
     rows
   }
 ]);
+return res.sendStatus(200); // ✅ Prevents further step progression
 
       }
     }
@@ -694,7 +695,7 @@ async function sendSummaryAndConfirm(from, data) {
   const total = groupSize * ratePerPerson;
   const balance = total - advancePaid;
 
-  const summary = `🧾 *Booking Summary:*
+  let summary = `🧾 *Booking Summary:*
 • *Client Name:* ${data.clientName}
 • *Phone:* ${data.clientPhone}
 • *Email:* ${data.clientEmail}
