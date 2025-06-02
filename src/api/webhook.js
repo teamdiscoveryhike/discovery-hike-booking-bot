@@ -423,7 +423,7 @@ if (step === "clientEmail") {
           description: "Continue without applying one"
         });
 
-        await sendList(from, `🎟️ WhatsApp Voucher Options (${allVouchers.length})`, [
+        await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
           {
             title: "Available Vouchers",
             rows
