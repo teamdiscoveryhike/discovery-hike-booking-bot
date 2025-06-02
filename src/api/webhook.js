@@ -80,16 +80,6 @@ router.post("/", async (req, res) => {
     }
   }
 
-  // 🧠 Catch invalid input while waiting for voucher selection
-if (!session?.data?.trekCategory && !session?.data?.clientName && getBookingVoucher(from) === null && !isVoucherSkipped(from)) {
-  const isAwaitingVoucher = !getBookingVoucher(from) && !isVoucherSkipped(from);
-  
-  if (isAwaitingVoucher) {
-    await sendText(from, "⚠️ Please choose a voucher from the list or select 'Don’t use any voucher'.");
-    return res.sendStatus(200);
-  }
-}
-
   // Proceed to next question
   if (isEditingSession(from)) {
     clearEditingFlag(from);
