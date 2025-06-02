@@ -55,28 +55,35 @@ router.post("/", async (req, res) => {
     let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
     
-    if (input.startsWith("voucher__")) {
+   if (input.startsWith("voucher__")) {
   if (input === "voucher__none") {
     markVoucherAsSkipped(from);
     await sendText(from, "🚫 No voucher will be applied.");
   } else {
-    const code = input.replace("voucher__", "");
+    const code = input.replace("voucher__", "").trim();
     const { data: voucher, error } = await supabase
       .from("vouchers")
       .select("*")
       .eq("code", code)
+      .eq("used", false)
+      .gte("expiry_date", new Date().toISOString().split("T")[0])
       .maybeSingle();
 
     if (voucher && !error) {
       setBookingVoucher(from, {
         code: voucher.code,
         amount: voucher.amount,
-        source: voucher.phone && voucher.email ? "shared" :
-                voucher.phone === getSessionData(from).clientPhone ? "phone" : "email"
+        source:
+          voucher.phone && voucher.email
+            ? "shared"
+            : voucher.phone === getSessionData(from).clientPhone
+            ? "phone"
+            : "email",
       });
       await sendText(from, `✅ Voucher *${voucher.code}* worth ₹${voucher.amount} has been applied.`);
     } else {
-      await sendText(from, "⚠️ Could not apply the selected voucher. Please try again.");
+      await sendText(from, "⚠️ Could not apply the selected voucher. Please try again from the list.");
+      return res.sendStatus(200);
     }
   }
 
@@ -91,6 +98,66 @@ router.post("/", async (req, res) => {
 
   return res.sendStatus(200);
 }
+
+// 🧠 Guard: Catch random input during voucher selection and resend list
+if (!getBookingVoucher(from) && !isVoucherSkipped(from)) {
+  const step = getCurrentStep(from);
+  const session = getSessionObject(from);
+
+  const expectingVoucher =
+    step === "trekCategory" &&
+    session?.data?.clientPhone &&
+    session?.data?.clientEmail &&
+    !session?.data?.trekCategory;
+
+  if (expectingVoucher) {
+    await sendText(
+      from,
+      "⚠️ Please choose a voucher from the list below or select *'🚫 Don’t use any voucher'* to continue."
+    );
+
+    const phone = session.data.clientPhone;
+    const email = session.data.clientEmail;
+
+    const { data: vouchers, error } = await supabase
+      .from("vouchers")
+      .select("*")
+      .or(`phone.eq.${phone},email.eq.${email}`)
+      .eq("used", false)
+      .gte("expiry_date", new Date().toISOString().split("T")[0]);
+
+    if (!error && vouchers?.length > 0) {
+      const shared = vouchers.filter(v => v.phone === phone && v.email === email);
+      const fromPhone = vouchers.filter(v => v.phone === phone && v.email !== email);
+      const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
+
+      const allVouchers = [
+        ...shared.map(v => ({ v, source: 'shared' })),
+        ...fromPhone.map(v => ({ v, source: 'phone' })),
+        ...fromEmail.map(v => ({ v, source: 'email' })),
+      ];
+
+      const rows = allVouchers.map(({ v, source }, i) => ({
+        id: `voucher__${v.code}`,
+        title: `${i + 1}. ${v.code} - ₹${v.amount}`,
+        description: `From ${source === "shared" ? "Phone+Email" : source}`,
+      }));
+
+      rows.push({
+        id: "voucher__none",
+        title: "🚫 Don’t use any voucher",
+        description: "Continue without applying one",
+      });
+
+      await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
+        { title: "Available Vouchers", rows },
+      ]);
+    }
+
+    return res.sendStatus(200);
+  }
+}
+
 
     // 🔐 Emergency Session Kill Trigger
 if (["xxx", "kill"].includes(lowerInput)) {
