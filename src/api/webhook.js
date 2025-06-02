@@ -55,7 +55,7 @@ router.post("/", async (req, res) => {
     let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
     
-   if (input.startsWith("voucher__")) {
+ if (input.startsWith("voucher__")) {
   if (input === "voucher__none") {
     markVoucherAsSkipped(from);
     await sendText(from, "🚫 No voucher will be applied.");
@@ -99,8 +99,12 @@ router.post("/", async (req, res) => {
   return res.sendStatus(200);
 }
 
-// 🧠 Guard: Catch random input during voucher selection and resend list
-if (!getBookingVoucher(from) && !isVoucherSkipped(from)) {
+// 🧠 Guard: Prevent invalid input & resend voucher list (only if session is active)
+if (
+  isSessionActive(from) &&
+  !getBookingVoucher(from) &&
+  !isVoucherSkipped(from)
+) {
   const step = getCurrentStep(from);
   const session = getSessionObject(from);
 
@@ -157,6 +161,8 @@ if (!getBookingVoucher(from) && !isVoucherSkipped(from)) {
     return res.sendStatus(200);
   }
 }
+
+
 
 
     // 🔐 Emergency Session Kill Trigger
