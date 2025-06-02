@@ -25,7 +25,7 @@ import {
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 import { handleVoucherFlow } from "../handlers/voucherWebhookHandler.js";
-
+import { getBookingVoucher, setBookingVoucher, updateCoverageFlag, isVoucherSkipped, voucherCoversTotal, clearBookingVoucher } from "../services/bookingVoucherContext.js";
 const router = express.Router();
 
 
@@ -47,10 +47,49 @@ router.post("/", async (req, res) => {
 
     let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
+    
+    if (input.startsWith("voucher__")) {
+  if (input === "voucher__none") {
+    markVoucherAsSkipped(from);
+    await sendText(from, "🚫 No voucher will be applied.");
+  } else {
+    const code = input.replace("voucher__", "");
+    const { data: voucher, error } = await supabase
+      .from("vouchers")
+      .select("*")
+      .eq("code", code)
+      .maybeSingle();
+
+    if (voucher && !error) {
+      setBookingVoucher(from, {
+        code: voucher.code,
+        amount: voucher.amount,
+        source: voucher.phone && voucher.email ? "shared" :
+                voucher.phone === getSessionData(from).clientPhone ? "phone" : "email"
+      });
+      await sendText(from, `✅ Voucher *${voucher.code}* worth ₹${voucher.amount} has been applied.`);
+    } else {
+      await sendText(from, "⚠️ Could not apply the selected voucher. Please try again.");
+    }
+  }
+
+  // Proceed to next question
+  if (isEditingSession(from)) {
+    clearEditingFlag(from);
+    const data = getSessionData(from);
+    await sendSummaryAndConfirm(from, data);
+  } else {
+    await askNextQuestion(from, getCurrentStep(from));
+  }
+
+  return res.sendStatus(200);
+}
+
     // 🔐 Emergency Session Kill Trigger
 if (["xxx", "kill"].includes(lowerInput)) {
   endSession?.(from);              // Kills booking session
   cancelVoucherSession?.(from);    // Kills voucher session
+  clearBookingVoucher(from);
   await sendText(from, "🛑 Session forcefully reset. Type *menu* to start again.");
   return res.sendStatus(200);
 }
@@ -130,8 +169,28 @@ if (handledByVoucher) return res.sendStatus(200);
   const groupSize = parseInt(data.groupSize || 0);
   const rate = parseInt(data.ratePerPerson || 0);
   const total = groupSize * rate;
-  const advance = parseInt(data.advancePaid || 0);
-  const balance = total - advance;
+  const voucher = getBookingVoucher(from);
+updateCoverageFlag(from, total);
+
+let advance = parseInt(data.advancePaid || 0);
+let balance = total - advance;
+let paymentMode = data.paymentMode;
+
+// 🔁 Voucher adjustment
+if (voucher?.code) {
+  if (voucher.amount >= total) {
+    advance = 0;
+    balance = 0;
+    paymentMode = "voucher";
+  } else {
+    const maxAdvance = total - voucher.amount;
+    if (advance > maxAdvance) {
+      advance = maxAdvance;
+    }
+    balance = total - voucher.amount - advance;
+  }
+}
+
 
   const bookingData = {
     client_name: data.clientName,
@@ -145,9 +204,10 @@ if (handledByVoucher) return res.sendStatus(200);
     total: total,
     advance_paid: advance,
     balance: balance,
-    payment_mode: data.paymentMode,
+    payment_mode: paymentMode,
     sharing_type: data.sharingType,
     special_notes: data.specialNotes || "-",
+    voucher_used: voucher?.code || null,
     status: "confirmed"
   };
 
@@ -167,6 +227,20 @@ if (handledByVoucher) return res.sendStatus(200);
       String(advance),
       String(balance)
     ]);
+    if (voucher?.code) {
+  // ✅ Mark voucher as used
+  await supabase.from("vouchers").update({
+    used: true,
+    used_at: new Date().toISOString(),
+    used_by_booking: bookingCode
+  }).eq("code", voucher.code);
+
+  // ✅ Send extra WhatsApp messages
+  await sendText(data.clientPhone, `🎟️ Your voucher *${voucher.code}* worth ₹${voucher.amount} has been redeemed for this booking.`);
+
+  await sendText(from, `ℹ️ Voucher *${voucher.code}* (₹${voucher.amount}) was redeemed for this booking and marked as used.`);
+}
+
 
   } catch (error) {
     console.error("❌ Booking insert failed:", error.message);
@@ -174,6 +248,7 @@ if (handledByVoucher) return res.sendStatus(200);
   }
 
   endSession(from);
+  clearBookingVoucher(from);
   return res.sendStatus(200);
 }
 
@@ -259,6 +334,7 @@ if (step === "clientPhone") {
 
   if (!isValidPhone) {
     await sendText(from, "⚠️ Please enter a valid phone number *starting with country code*. Example: +91 98765 43210");
+    clearBookingVoucher(from);
     return res.sendStatus(200);
   }
 
@@ -278,18 +354,102 @@ if (step === "clientPhone") {
   } else {
     await askNextQuestion(from, getCurrentStep(from));
   }
+clearBookingVoucher(from);
+  return res.sendStatus(200);
+}
+
+
+if (step === "clientEmail") {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(input)) {
+    await sendText(from, "⚠️ Please enter a valid email address (e.g. example@mail.com).");
+    clearBookingVoucher(from);
+    return res.sendStatus(200);
+  }
+
+  saveResponse(from, input, !isEditing);
+
+  const data = getSessionData(from);
+  const phone = data.clientPhone;
+  const email = data.clientEmail;
+
+  // 🧠 Proceed only if no voucher is already applied/skipped
+  const existing = getBookingVoucher(from);
+  if (!existing && !isVoucherSkipped(from)) {
+    const { data: vouchers, error } = await supabase
+      .from("vouchers")
+      .select("*")
+      .or(`phone.eq.${phone},email.eq.${email}`)
+      .eq("used", false)
+      .eq("otp_verified", true)
+      .gte("expiry_date", new Date().toISOString().split("T")[0]);
+
+    if (!error && vouchers?.length) {
+      // 💡 Group by source: phone/email/both
+      const fromPhone = vouchers.filter(v => v.phone === phone);
+      const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
+      const shared = vouchers.filter(v => v.phone === phone && v.email === email);
+
+      // ☑️ If shared voucher, auto-set it
+      if (shared.length === 1) {
+        setBookingVoucher(from, {
+          code: shared[0].code,
+          amount: shared[0].amount,
+          source: "shared"
+        });
+        await sendText(from, `🎟️ Voucher *${shared[0].code}* worth ₹${shared[0].amount} has been detected and applied.`);
+      } else {
+        // 🔁 If multiple vouchers, show options (we’ll build UI in next step)
+        await sendText(from, "🎟️ Multiple vouchers found. Please select one to apply or skip.");
+        // defer to next step logic — we'll insert team choice logic soon
+        const rows = [];
+
+fromPhone.forEach(v => {
+  rows.push({
+    id: `voucher__${v.code}`,
+    title: `${v.code} (₹${v.amount})`,
+    description: `From Phone`
+  });
+});
+
+fromEmail.forEach(v => {
+  rows.push({
+    id: `voucher__${v.code}`,
+    title: `${v.code} (₹${v.amount})`,
+    description: `From Email`
+  });
+});
+
+rows.push({
+  id: "voucher__none",
+  title: "🚫 Don’t use any voucher",
+  description: "Continue without applying one"
+});
+
+await sendList(from, "🎟️ Choose a voucher to apply:", [
+  {
+    title: "Available Vouchers",
+    rows
+  }
+]);
+
+      }
+    }
+  }
+
+  if (isEditing) {
+    clearEditingFlag(from);
+    const updated = getSessionData(from);
+    await sendSummaryAndConfirm(from, updated);
+  } else {
+    await askNextQuestion(from, getCurrentStep(from));
+  }
 
   return res.sendStatus(200);
 }
 
 
-    if (step === "clientEmail") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(input)) {
-        await sendText(from, "⚠️ Please enter a valid email address (e.g. example@mail.com).");
-        return res.sendStatus(200);
-      }
-    }
+
 
     if (step === "trekCategory") {
       if (!["trek", "expedition"].includes(input.toLowerCase())) {
@@ -313,22 +473,42 @@ if (step === "clientPhone") {
     }
 
     if (step === "paymentMode") {
+const voucher = getBookingVoucher(from);
+const session = getSessionObject(from);
+const groupSize = parseInt(session.data.groupSize || 0);
+const rate = parseInt(session.data.ratePerPerson || 0);
+const total = groupSize * rate;
+updateCoverageFlag(from, total);
+
+if (voucher?.code && voucher.amount >= total) {
+  await sendText(from, `⚠️ Voucher already covers full amount. You don't need to edit this field.`);
+  return res.sendStatus(200);
+}
+
       if (!["online", "onspot"].includes(input.toLowerCase())) {
         await sendText(from, "⚠️ Please choose *Online* or *On-spot* using buttons.");
         return res.sendStatus(200);
       }
     }
 
-    if (step === "advancePaid") {
+   if (step === "advancePaid") {
+  const session = getSessionObject(from);
+  const voucher = getBookingVoucher(from);
+  const groupSize = parseInt(session.data.groupSize || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
+  const total = groupSize * rate;
+  updateCoverageFlag(from, total);
+
+  if (voucher?.code && voucher.amount >= total) {
+    await sendText(from, `⚠️ Voucher already covers full amount. You don't need to enter advance payment.`);
+    return res.sendStatus(200);
+  }
+
   if (!/^\d+$/.test(input.trim())) {
     await sendText(from, "💵 Please enter a valid advance amount (number only).");
     return res.sendStatus(200);
   }
 
-  const session = getSessionObject(from);
-  const groupSize = parseInt(session.data.groupSize || 0);
-  const rate = parseInt(session.data.ratePerPerson || 0);
-  const total = groupSize * rate;
   const advance = parseInt(input);
 
   if (advance > total) {
@@ -346,6 +526,7 @@ if (step === "clientPhone") {
     }
   }
 }
+
 
 
     if (step === "sharingType") {
@@ -391,10 +572,41 @@ if (step === "clientPhone") {
       }
 
       if (step === "advancePaid") {
+        const voucher = getBookingVoucher(from);
+const session = getSessionObject(from);
+const groupSize = parseInt(session.data.groupSize || 0);
+const rate = parseInt(session.data.ratePerPerson || 0);
+const total = groupSize * rate;
+updateCoverageFlag(from, total);
+
+if (voucher?.code && voucher.amount >= total) {
+  await sendText(from, `⚠️ Voucher already covers full amount. You don't need to enter advance payment.`);
+  return res.sendStatus(200);
+}
+
         clearEditingFlag(from);
         await sendSummaryAndConfirm(from, data);
         return res.sendStatus(200);
       }
+      const voucher = getBookingVoucher(from);
+if (voucher?.code) {
+  const session = getSessionObject(from);
+  const groupSize = parseInt(session.data.groupSize || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
+  const newTotal = groupSize * rate;
+
+  if (voucher.amount >= newTotal) {
+    session.data.paymentMode = "voucher";
+    session.data.advancePaid = 0;
+    session.data.balance = 0;
+    await sendText(from, "ℹ️ Updated booking total is now fully covered by voucher. Payment fields have been reset.");
+  } else {
+    const advance = parseInt(session.data.advancePaid || 0);
+    const balance = newTotal - advance - voucher.amount;
+    session.data.balance = balance;
+  }
+}
+
 
       // 🧼 Default: finish edit and return to summary
       clearEditingFlag(from);
@@ -497,6 +709,16 @@ async function sendSummaryAndConfirm(from, data) {
 • *Sharing:* ${data.sharingType}
 • *Payment Mode:* ${data.paymentMode}
 • *Notes:* ${data.specialNotes || '-'}`;
+const voucher = getBookingVoucher(from);
+if (voucher?.code) {
+  summary += `
+
+🎟️ *Voucher Applied:*
+• Code: ${voucher.code}
+• Amount: ₹${voucher.amount}
+• Covered Fully: ${voucher.coveredFully ? "Yes" : "No"}`;
+}
+
 
   await sendText(from, summary);
   await sendButtons(from, "✅ Confirm booking?", [
