@@ -345,14 +345,8 @@ if (step === "clientPhone") {
     return res.sendStatus(200);
   }
 
-  // 🔕 Sandbox-safe: skip WhatsApp API number check
-  // const isWhatsapp = await checkWhatsappNumber(cleaned);
-  // if (!isWhatsapp) {
-  //   await sendText(from, "❌ This number is *not registered on WhatsApp*. Please check and try again.");
-  //   return res.sendStatus(200);
-  // }
-
   saveResponse(from, cleaned, !isEditing);
+  clearBookingVoucher(from); // 🧹 Important: Clear any stale voucher tied to previous phone/email
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -361,7 +355,7 @@ if (step === "clientPhone") {
   } else {
     await askNextQuestion(from, getCurrentStep(from));
   }
-clearBookingVoucher(from);
+
   return res.sendStatus(200);
 }
 
@@ -380,7 +374,6 @@ if (step === "clientEmail") {
   const phone = data.clientPhone;
   const email = data.clientEmail;
 
-  // 🧠 Proceed only if no voucher is already applied/skipped
   const existing = getBookingVoucher(from);
   if (!existing && !isVoucherSkipped(from)) {
     const { data: vouchers, error } = await supabase
@@ -388,59 +381,56 @@ if (step === "clientEmail") {
       .select("*")
       .or(`phone.eq.${phone},email.eq.${email}`)
       .eq("used", false)
-      .eq("otp_verified", true)
       .gte("expiry_date", new Date().toISOString().split("T")[0]);
 
-    if (!error && vouchers?.length) {
-      // 💡 Group by source: phone/email/both
-      const fromPhone = vouchers.filter(v => v.phone === phone);
-      const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
+    if (!error && vouchers?.length > 0) {
       const shared = vouchers.filter(v => v.phone === phone && v.email === email);
+      const fromPhone = vouchers.filter(v => v.phone === phone && v.email !== email);
+      const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
 
-      // ☑️ If shared voucher, auto-set it
+      // ✅ Auto-apply shared if exactly one
       if (shared.length === 1) {
+        const voucher = shared[0];
         setBookingVoucher(from, {
-          code: shared[0].code,
-          amount: shared[0].amount,
+          code: voucher.code,
+          amount: voucher.amount,
           source: "shared"
         });
-        await sendText(from, `🎟️ Voucher *${shared[0].code}* worth ₹${shared[0].amount} has been detected and applied.`);
+
+        const groupSize = parseInt(data.groupSize || 0);
+        const rate = parseInt(data.ratePerPerson || 0);
+        const total = groupSize * rate;
+        updateCoverageFlag(from, total);
+
+        await sendText(from, `🎟️ Voucher *${voucher.code}* worth ₹${voucher.amount} was auto-applied.`);
       } else {
-        // 🔁 If multiple vouchers, show options (we’ll build UI in next step)
-        await sendText(from, "🎟️ Multiple vouchers found. Please select one to apply or skip.");
-        // defer to next step logic — we'll insert team choice logic soon
-        const rows = [];
+        // 🎯 Build clean, numbered list
+        const allVouchers = [
+          ...shared.map(v => ({ v, source: 'shared' })),
+          ...fromPhone.map(v => ({ v, source: 'phone' })),
+          ...fromEmail.map(v => ({ v, source: 'email' }))
+        ];
 
-fromPhone.forEach(v => {
-  rows.push({
-    id: `voucher__${v.code}`,
-    title: `${v.code} (₹${v.amount})`,
-    description: `From Phone`
-  });
-});
+        const rows = allVouchers.map(({ v, source }, i) => ({
+          id: `voucher__${v.code}`,
+          title: `${i + 1}. ${v.code} - ₹${v.amount}`,
+          description: `From ${source === "shared" ? "Phone+Email" : source}`
+        }));
 
-fromEmail.forEach(v => {
-  rows.push({
-    id: `voucher__${v.code}`,
-    title: `${v.code} (₹${v.amount})`,
-    description: `From Email`
-  });
-});
+        rows.push({
+          id: "voucher__none",
+          title: "🚫 Don’t use any voucher",
+          description: "Continue without applying one"
+        });
 
-rows.push({
-  id: "voucher__none",
-  title: "🚫 Don’t use any voucher",
-  description: "Continue without applying one"
-});
+        await sendList(from, `🎟️ WhatsApp Voucher Options (${allVouchers.length})`, [
+          {
+            title: "Available Vouchers",
+            rows
+          }
+        ]);
 
-await sendList(from, "🎟️ Choose a voucher to apply:", [
-  {
-    title: "Available Vouchers",
-    rows
-  }
-]);
-return res.sendStatus(200); // ✅ Prevents further step progression
-
+        return res.sendStatus(200); // 🔒 Prevent flow continuation until voucher picked
       }
     }
   }
@@ -455,6 +445,7 @@ return res.sendStatus(200); // ✅ Prevents further step progression
 
   return res.sendStatus(200);
 }
+
 
 
 
