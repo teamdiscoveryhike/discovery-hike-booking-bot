@@ -56,3 +56,23 @@ export function endVoucherSession(userId) {
 export function cancelVoucherSession(userId) {
   delete voucherSessions[userId];
 }
+export function isSessionExpired(userId, timeoutMinutes = 10) {
+  const session = voucherSessions[userId];
+  if (!session) return true;
+  const now = Date.now();
+  return now - session.startedAt > timeoutMinutes * 60 * 1000;
+}
+
+export function incrementOtpAttempts(userId, forWhom = "holder") {
+  if (!voucherSessions[userId]) return;
+  const key = `${forWhom}_attempts`;
+  const attempts = voucherSessions[userId].data[key] || 0;
+  voucherSessions[userId].data[key] = attempts + 1;
+  return voucherSessions[userId].data[key];
+}
+
+export function resetOtpAttempts(userId, forWhom = "holder") {
+  if (voucherSessions[userId]) {
+    voucherSessions[userId].data[`${forWhom}_attempts`] = 0;
+  }
+}

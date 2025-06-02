@@ -11,7 +11,10 @@ import {
   saveOtp,
   getOtp,
   endVoucherSession,
-  cancelVoucherSession
+  cancelVoucherSession,
+  isSessionExpired, 
+  incrementOtpAttempts, 
+  resetOtpAttempts
 } from "../services/voucherSessionManager.js";
 
 import { sendText, sendButtons } from "../services/whatsapp.js";
@@ -62,7 +65,11 @@ export async function handleVoucherFlow(input, from) {
   }
 
   if (!isVoucherSession(from)) return false;
-
+  if (isVoucherSession(from) && isSessionExpired(from)) {
+  endVoucherSession(from);
+  await sendText(from, "⌛ Session expired due to inactivity. Please start again.");
+  return true;
+}
   const step = getVoucherStep(from);
   const type = getVoucherType(from);
   const data = getVoucherData(from);
@@ -259,9 +266,18 @@ const index = parseInt(cleaned, 10);
 
   if (step === "verify_holder_otp") {
     if (input.trim() !== getOtp(from, "holder")) {
-      await sendText(from, "❌ Incorrect OTP. Try again.");
-      return true;
-    }
+  const attempts = incrementOtpAttempts(from, "holder");
+  if (attempts >= 3) {
+    await sendText(from, "❌ Too many incorrect OTP attempts. Session closed for security.");
+    endVoucherSession(from);
+    return true;
+  }
+  await sendText(from, `❌ Incorrect OTP. Attempt ${attempts}/3. Try again.`);
+  return true;
+}
+
+resetOtpAttempts(from, "holder");
+
 
     setVoucherStep(from, "recipient_contact");
     await sendText(from, "✅ Holder verified.\n📱 Now enter recipient's phone or email:");
@@ -303,9 +319,18 @@ const index = parseInt(cleaned, 10);
 
   if (step === "verify_recipient_otp") {
     if (input.trim() !== getOtp(from, "recipient")) {
-      await sendText(from, "❌ Incorrect OTP. Try again.");
-      return true;
-    }
+  const attempts = incrementOtpAttempts(from, "recipient");
+  if (attempts >= 3) {
+    await sendText(from, "❌ Too many incorrect OTP attempts. Session closed for security.");
+    endVoucherSession(from);
+    return true;
+  }
+  await sendText(from, `❌ Incorrect OTP. Attempt ${attempts}/3. Try again.`);
+  return true;
+}
+
+resetOtpAttempts(from, "recipient");
+
 
     const update = {};
     if (data.recipient_type === "phone") {
