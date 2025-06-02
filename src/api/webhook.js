@@ -25,7 +25,14 @@ import {
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 import { handleVoucherFlow } from "../handlers/voucherWebhookHandler.js";
-import { getBookingVoucher, setBookingVoucher, updateCoverageFlag, isVoucherSkipped, voucherCoversTotal, clearBookingVoucher } from "../services/bookingVoucherContext.js";
+import { 
+  getBookingVoucher, 
+  setBookingVoucher, 
+  updateCoverageFlag, 
+  isVoucherSkipped, 
+  voucherCoversTotal,
+  markVoucherAsSkipped, 
+  clearBookingVoucher } from "../services/bookingVoucherContext.js";
 const router = express.Router();
 
 
