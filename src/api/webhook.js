@@ -135,9 +135,6 @@ if (handled) return res.sendStatus(200);
       input = "edit_booking";
     }
 
-    if (input === "manual_voucher") {
-  return await handleVoucherFlow(from);
-}
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
