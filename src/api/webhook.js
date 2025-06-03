@@ -409,41 +409,26 @@ if (step === "clientEmail") {
         ...fromEmail.map(v => ({ v, source: 'email' }))
       ];
 
-      // ✅ Auto-apply only if there's exactly ONE total voucher, and it's shared
-      if (allVouchers.length === 1 && allVouchers[0].source === "shared") {
-        const { v: voucher } = allVouchers[0];
-        setBookingVoucher(from, {
-          code: voucher.code,
-          amount: voucher.amount,
-          source: "shared"
-        });
+      if (allVouchers.length > 0) {
+  const rows = allVouchers.map(({ v, source }, i) => ({
+    id: `voucher__${v.code}`,
+    title: `${i + 1}. ${v.code} - ₹${v.amount}`,
+    description: `From ${source === "shared" ? "Phone+Email" : source}`
+  }));
 
-        const groupSize = parseInt(data.groupSize || 0);
-        const rate = parseInt(data.ratePerPerson || 0);
-        const total = groupSize * rate;
-        updateCoverageFlag(from, total);
+  rows.push({
+    id: "voucher__none",
+    title: "🚫 Don’t use any voucher",
+    description: "Continue without applying one"
+  });
 
-        await sendText(from, `🎟️ Voucher *${voucher.code}* worth ₹${voucher.amount} was auto-applied.`);
-      } else {
-        // ✅ Otherwise, show list to user
-        const rows = allVouchers.map(({ v, source }, i) => ({
-          id: `voucher__${v.code}`,
-          title: `${i + 1}. ${v.code} - ₹${v.amount}`,
-          description: `From ${source === "shared" ? "Phone+Email" : source}`
-        }));
+  await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
+    { title: "Available Vouchers", rows }
+  ]);
 
-        rows.push({
-          id: "voucher__none",
-          title: "🚫 Don’t use any voucher",
-          description: "Continue without applying one"
-        });
+  return res.sendStatus(200); // ⛔ Important: Pause until selection
+}
 
-        await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
-          { title: "Available Vouchers", rows }
-        ]);
-
-        return res.sendStatus(200); // ⛔ Important: Pause until selection
-      }
     }
   }
 
