@@ -398,7 +398,18 @@ if (step === "clientEmail") {
 
   saveResponse(from, input, !isEditing);
 
-  // ✅ No inline voucher lookup here anymore — you’ve already globally rechecked
+  // ✅ After email is saved, we now have both phone + email
+  const updatedData = getSessionData(from);
+  const updatedPhone = updatedData.clientPhone;
+  const updatedEmail = updatedData.clientEmail;
+
+  const voucherExists = getBookingVoucher(from);
+  const voucherSkipped = isVoucherSkipped(from);
+
+  if (!voucherExists && !voucherSkipped) {
+    const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
+    if (paused) return res.sendStatus(200);
+  }
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -410,6 +421,7 @@ if (step === "clientEmail") {
 
   return res.sendStatus(200);
 }
+
 
 
     if (step === "trekCategory") {
