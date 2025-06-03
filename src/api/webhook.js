@@ -153,43 +153,48 @@ if (handled) return res.sendStatus(200);
 
     // ✅ PAGINATED EDIT MENU
     if (input === "edit_booking") {
-      try {
-        const data = getSessionData(from);
-        const voucher = getBookingVoucher(from);
-const groupSize = parseInt(data.groupSize || 0);
-const rate = parseInt(data.ratePerPerson || 0);
-const total = groupSize * rate;
-updateCoverageFlag(from, total);
+  try {
+    if (!isSessionActive(from)) {
+      startSession(from);
+    }
 
-let editableFields = Object.keys(data).filter(k => k !== "balance");
+    const data = getSessionData(from);
+    const voucher = getBookingVoucher(from);
+    const groupSize = parseInt(data.groupSize || 0);
+    const rate = parseInt(data.ratePerPerson || 0);
+    const total = groupSize * rate;
+    updateCoverageFlag(from, total);
 
-if (!voucherCoversTotal(from, total)) {
-  if (!editableFields.includes("paymentMode")) editableFields.push("paymentMode");
-  if (!editableFields.includes("advancePaid")) editableFields.push("advancePaid");
+    let editableFields = Object.keys(data).filter(k => k !== "balance");
+
+    if (!voucherCoversTotal(from, total)) {
+      if (!editableFields.includes("paymentMode")) editableFields.push("paymentMode");
+      if (!editableFields.includes("advancePaid")) editableFields.push("advancePaid");
+    }
+
+    const currentPage = getEditPage(from);
+    const pageSize = 5;
+    const start = currentPage * pageSize;
+    const end = start + pageSize;
+    const fieldsOnPage = editableFields.slice(start, end);
+
+    const rows = fieldsOnPage.map(key => {
+      let title = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
+      if (title.length > 24) title = title.slice(0, 21) + "...";
+      return { id: `edit__${key}`, title };
+    });
+
+    if (end < editableFields.length) rows.push({ id: "edit_page_next", title: "➡️ Next Page" });
+    if (start > 0) rows.push({ id: "edit_page_prev", title: "⬅️ Previous Page" });
+
+    await sendList(from, "Which field do you want to edit?", [{ title: "Fields", rows }]);
+  } catch (e) {
+    await sendText(from, "⚠️ No active session. Please start a new booking.");
+  }
+
+  return res.sendStatus(200);
 }
 
-const currentPage = getEditPage(from);
-const pageSize = 5;
-const start = currentPage * pageSize;
-const end = start + pageSize;
-const fieldsOnPage = editableFields.slice(start, end);
-
-
-        const rows = fieldsOnPage.map(key => {
-          let title = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
-          if (title.length > 24) title = title.slice(0, 21) + "...";
-          return { id: `edit__${key}`, title };
-        });
-
-        if (end < allFields.length) rows.push({ id: "edit_page_next", title: "➡️ Next Page" });
-        if (start > 0) rows.push({ id: "edit_page_prev", title: "⬅️ Previous Page" });
-
-        await sendList(from, "Which field do you want to edit?", [{ title: "Fields", rows }]);
-      } catch (e) {
-        await sendText(from, "⚠️ No active session. Please start a new booking.");
-      }
-      return res.sendStatus(200);
-    }
 
     if (input.startsWith("edit__")) {
       const field = input.replace("edit__", "");
@@ -397,19 +402,19 @@ if (step === "clientEmail") {
   }
 
   saveResponse(from, input, !isEditing);
+const updatedData = getSessionData(from);
+const updatedPhone = updatedData.clientPhone;
+const updatedEmail = updatedData.clientEmail;
 
-  // ✅ After email is saved, we now have both phone + email
-  const updatedData = getSessionData(from);
-  const updatedPhone = updatedData.clientPhone;
-  const updatedEmail = updatedData.clientEmail;
+const voucherExists = getBookingVoucher(from);
+const voucherSkipped = isVoucherSkipped(from);
 
-  const voucherExists = getBookingVoucher(from);
-  const voucherSkipped = isVoucherSkipped(from);
+if (!voucherExists && !voucherSkipped) {
+  const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
+  if (paused) return res.sendStatus(200);
+}
 
-  if (!voucherExists && !voucherSkipped) {
-    const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
-    if (paused) return res.sendStatus(200);
-  }
+  // ✅ No inline voucher lookup here anymore — you’ve already globally rechecked
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -421,7 +426,6 @@ if (step === "clientEmail") {
 
   return res.sendStatus(200);
 }
-
 
 
     if (step === "trekCategory") {
@@ -510,15 +514,6 @@ if (voucher?.code && voucher.amount >= total) {
     }
 
     saveResponse(from, input, !isEditing);
-
-    if (step === "clientPhone" || step === "clientEmail") {
-  const updatedData = getSessionData(from);
-  const updatedPhone = updatedData.clientPhone;
-  const updatedEmail = updatedData.clientEmail;
-
-  const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
-  if (paused) return res.sendStatus(200);
-}
 
 
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
