@@ -705,29 +705,92 @@ if (voucher?.code) {
 });
 
 async function askNextQuestion(userId, step) {
-  if (step === "clientName") return sendText(userId, "👤 Enter *Client Name*:");
-  if (step === "clientPhone") return sendText(userId, "📞 Enter *Client Phone Number*:");
-  if (step === "clientEmail") return sendText(userId, "📧 Enter *Client Email Address*:");
-  if (step === "trekCategory") return sendButtons(userId, "🏔 Select *Trek Category*:", [
-    { type: "reply", reply: { id: "Trek", title: "Trek" } },
-    { type: "reply", reply: { id: "Expedition", title: "Expedition" } }
-  ]);
-  if (step === "trekName") return sendTrekList(userId);
-  if (step === "trekDate") return sendButtons(userId, "📅 Choose a date:", [
-    { type: "reply", reply: { id: "today", title: "Today" } },
-    { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
-    { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
-  ]);
-  if (step === "sharingType") return sendButtons(userId, "🏠 Select *Sharing Type*:", [
-    { type: "reply", reply: { id: "Single", title: "Single" } },
-    { type: "reply", reply: { id: "Double", title: "Double" } },
-    { type: "reply", reply: { id: "Triple", title: "Triple" } }
-  ]);
-  if (step === "paymentMode") return sendButtons(userId, "💳 Payment mode?", [
-    { type: "reply", reply: { id: "Online", title: "Online" } },
-    { type: "reply", reply: { id: "onspot", title: "On-spot" } }
-  ]);
-  return sendText(userId, `✍️ Please enter *${step.replace(/([A-Z])/g, " $1").toLowerCase()}*:`); // default
+  const session = getSessionObject(userId);
+  const steps = [
+    "clientName",
+    "clientPhone",
+    "clientEmail",
+    "trekCategory",
+    "trekName",
+    "trekDate",
+    "groupSize",
+    "ratePerPerson",
+    "paymentMode",
+    "advancePaid",
+    "sharingType",
+    "specialNotes"
+  ];
+
+  let currentIndex = session.stepIndex;
+
+  const groupSize = parseInt(session.data.groupSize || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
+  const total = groupSize * rate;
+  const voucher = getBookingVoucher(userId);
+
+  while (currentIndex < steps.length) {
+    const currentStep = steps[currentIndex];
+
+    // 🧠 Skip payment steps if voucher covers total
+    if (
+      (currentStep === "paymentMode" || currentStep === "advancePaid") &&
+      voucher?.amount >= total
+    ) {
+      console.log(`[FLOW] Skipping '${currentStep}' because voucher covers total.`);
+      currentIndex++;
+      continue;
+    }
+
+    // ✅ Ask this step
+    session.stepIndex = currentIndex;
+
+    if (currentStep === "clientName")
+      return sendText(userId, "👤 Enter *Client Name*:");
+
+    if (currentStep === "clientPhone")
+      return sendText(userId, "📞 Enter *Client Phone Number*:");
+
+    if (currentStep === "clientEmail")
+      return sendText(userId, "📧 Enter *Client Email Address*:");
+
+    if (currentStep === "trekCategory")
+      return sendButtons(userId, "🏔 Select *Trek Category*:", [
+        { type: "reply", reply: { id: "Trek", title: "Trek" } },
+        { type: "reply", reply: { id: "Expedition", title: "Expedition" } }
+      ]);
+
+    if (currentStep === "trekName")
+      return sendTrekList(userId);
+
+    if (currentStep === "trekDate")
+      return sendButtons(userId, "📅 Choose a date:", [
+        { type: "reply", reply: { id: "today", title: "Today" } },
+        { type: "reply", reply: { id: "tomorrow", title: "Tomorrow" } },
+        { type: "reply", reply: { id: "manual", title: "Enter Manually" } }
+      ]);
+
+    if (currentStep === "sharingType")
+      return sendButtons(userId, "🏠 Select *Sharing Type*:", [
+        { type: "reply", reply: { id: "Single", title: "Single" } },
+        { type: "reply", reply: { id: "Double", title: "Double" } },
+        { type: "reply", reply: { id: "Triple", title: "Triple" } }
+      ]);
+
+    if (currentStep === "paymentMode")
+      return sendButtons(userId, "💳 Payment mode?", [
+        { type: "reply", reply: { id: "Online", title: "Online" } },
+        { type: "reply", reply: { id: "onspot", title: "On-spot" } }
+      ]);
+
+    // ✍️ Fallback for text-based questions
+    return sendText(
+      userId,
+      `✍️ Please enter *${currentStep.replace(/([A-Z])/g, " $1").toLowerCase()}*:`
+    );
+  }
+
+  // 🧾 If all steps done, send summary
+  await sendSummaryAndConfirm(userId, session.data);
 }
 
 async function sendTrekList(userId) {
