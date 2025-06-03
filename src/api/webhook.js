@@ -64,6 +64,10 @@ if (["xxx", "kill"].includes(lowerInput)) {
   return res.sendStatus(200);
 }
 
+// 🧠 Check if this input is part of the manual voucher flow
+const handled = await handleVoucherFlow(input, from);
+if (handled) return res.sendStatus(200);
+
     
  if (input.startsWith("voucher__")) {
   if (input === "voucher__none") {
