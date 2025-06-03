@@ -155,12 +155,25 @@ if (handled) return res.sendStatus(200);
     if (input === "edit_booking") {
       try {
         const data = getSessionData(from);
-        const allFields = Object.keys(data);
-        const currentPage = getEditPage(from);
-        const pageSize = 5;
-        const start = currentPage * pageSize;
-        const end = start + pageSize;
-        const fieldsOnPage = allFields.slice(start, end);
+        const voucher = getBookingVoucher(from);
+const groupSize = parseInt(data.groupSize || 0);
+const rate = parseInt(data.ratePerPerson || 0);
+const total = groupSize * rate;
+updateCoverageFlag(from, total);
+
+let editableFields = Object.keys(data).filter(k => k !== "balance");
+
+if (!voucherCoversTotal(from, total)) {
+  if (!editableFields.includes("paymentMode")) editableFields.push("paymentMode");
+  if (!editableFields.includes("advancePaid")) editableFields.push("advancePaid");
+}
+
+const currentPage = getEditPage(from);
+const pageSize = 5;
+const start = currentPage * pageSize;
+const end = start + pageSize;
+const fieldsOnPage = editableFields.slice(start, end);
+
 
         const rows = fieldsOnPage.map(key => {
           let title = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
@@ -385,52 +398,7 @@ if (step === "clientEmail") {
 
   saveResponse(from, input, !isEditing);
 
-  const data = getSessionData(from);
-  const phone = data.clientPhone;
-  const email = data.clientEmail;
-
-  const existing = getBookingVoucher(from);
-  if (!existing && !isVoucherSkipped(from)) {
-    const { data: vouchers, error } = await supabase
-      .from("vouchers")
-      .select("*")
-      .eq("used", false)
-      .gte("expiry_date", new Date().toISOString().split("T")[0])
-      .or(`phone.eq.${phone},email.eq.${email}`);  // ✅ This includes shared too
-
-    if (!error && vouchers?.length > 0) {
-      const shared = vouchers.filter(v => v.phone === phone && v.email === email);
-      const fromPhone = vouchers.filter(v => v.phone === phone && v.email !== email);
-      const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
-
-      const allVouchers = [
-        ...shared.map(v => ({ v, source: 'shared' })),
-        ...fromPhone.map(v => ({ v, source: 'phone' })),
-        ...fromEmail.map(v => ({ v, source: 'email' }))
-      ];
-
-      if (allVouchers.length > 0) {
-  const rows = allVouchers.map(({ v, source }, i) => ({
-    id: `voucher__${v.code}`,
-    title: `${i + 1}. ${v.code} - ₹${v.amount}`,
-    description: `From ${source === "shared" ? "Phone+Email" : source}`
-  }));
-
-  rows.push({
-    id: "voucher__none",
-    title: "🚫 Don’t use any voucher",
-    description: "Continue without applying one"
-  });
-
-  await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
-    { title: "Available Vouchers", rows }
-  ]);
-
-  return res.sendStatus(200); // ⛔ Important: Pause until selection
-}
-
-    }
-  }
+  // ✅ No inline voucher lookup here anymore — you’ve already globally rechecked
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -442,6 +410,7 @@ if (step === "clientEmail") {
 
   return res.sendStatus(200);
 }
+
 
     if (step === "trekCategory") {
       if (!["trek", "expedition"].includes(input.toLowerCase())) {
@@ -529,6 +498,16 @@ if (voucher?.code && voucher.amount >= total) {
     }
 
     saveResponse(from, input, !isEditing);
+
+    if (step === "clientPhone" || step === "clientEmail") {
+  const updatedData = getSessionData(from);
+  const updatedPhone = updatedData.clientPhone;
+  const updatedEmail = updatedData.clientEmail;
+
+  const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
+  if (paused) return res.sendStatus(200);
+}
+
 
     if (step === "paymentMode" && input.toLowerCase() === "onspot") {
       const session = getSessionObject(from);
@@ -623,6 +602,50 @@ if (voucher?.code) {
     res.sendStatus(500);
   }
 });
+
+// ✅ Refactored Voucher Re-Evaluation Helper
+async function reevaluateVoucher(userId, updatedPhone, updatedEmail) {
+  clearBookingVoucher(userId);
+
+  const { data: vouchers, error } = await supabase
+    .from("vouchers")
+    .select("*")
+    .eq("used", false)
+    .gte("expiry_date", new Date().toISOString().split("T")[0])
+    .or(`phone.eq.${updatedPhone},email.eq.${updatedEmail}`);
+
+  if (!error && vouchers?.length > 0) {
+    const shared = vouchers.filter(v => v.phone === updatedPhone && v.email === updatedEmail);
+    const fromPhone = vouchers.filter(v => v.phone === updatedPhone && v.email !== updatedEmail);
+    const fromEmail = vouchers.filter(v => v.email === updatedEmail && v.phone !== updatedPhone);
+
+    const allVouchers = [
+      ...shared.map(v => ({ v, source: 'shared' })),
+      ...fromPhone.map(v => ({ v, source: 'phone' })),
+      ...fromEmail.map(v => ({ v, source: 'email' }))
+    ];
+
+    const rows = allVouchers.map(({ v, source }, i) => ({
+      id: `voucher__${v.code}`,
+      title: `${i + 1}. ${v.code} - ₹${v.amount}`,
+      description: `From ${source === "shared" ? "Phone+Email" : source}`
+    }));
+
+    rows.push({
+      id: "voucher__none",
+      title: "🚫 Don’t use any voucher",
+      description: "Continue without applying one"
+    });
+
+    await sendList(userId, `🎟️ Voucher Options (${allVouchers.length})`, [
+      { title: "Available Vouchers", rows }
+    ]);
+
+    return true; // pause booking flow
+  }
+
+  return false; // continue as normal
+}
 
 async function askNextQuestion(userId, step) {
   const session = getSessionObject(userId);
