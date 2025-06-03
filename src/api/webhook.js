@@ -399,49 +399,51 @@ if (step === "clientEmail") {
       const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
 console.log(`[VOUCHER CHECK] Phone: ${phone}, Email: ${email}, Shared: ${shared.length}, Phone-only: ${fromPhone.length}, Email-only: ${fromEmail.length}`);
       // ✅ Auto-apply shared if exactly one
-      if (shared.length === 1) {
-        const voucher = shared[0];
-        setBookingVoucher(from, {
-          code: voucher.code,
-          amount: voucher.amount,
-          source: "shared"
-        });
+      if (shared.length === 1 && fromPhone.length === 0 && fromEmail.length === 0) {
+  // ✅ Only one voucher total, and it's shared → auto-apply
+  const voucher = shared[0];
+  setBookingVoucher(from, {
+    code: voucher.code,
+    amount: voucher.amount,
+    source: "shared"
+  });
 
-        const groupSize = parseInt(data.groupSize || 0);
-        const rate = parseInt(data.ratePerPerson || 0);
-        const total = groupSize * rate;
-        updateCoverageFlag(from, total);
+  const groupSize = parseInt(data.groupSize || 0);
+  const rate = parseInt(data.ratePerPerson || 0);
+  const total = groupSize * rate;
+  updateCoverageFlag(from, total);
 
-        await sendText(from, `🎟️ Voucher *${voucher.code}* worth ₹${voucher.amount} was auto-applied.`);
-      } else {
-        // 🎯 Build clean, numbered list
-        const allVouchers = [
-          ...shared.map(v => ({ v, source: 'shared' })),
-          ...fromPhone.map(v => ({ v, source: 'phone' })),
-          ...fromEmail.map(v => ({ v, source: 'email' }))
-        ];
+  await sendText(from, `🎟️ Voucher *${voucher.code}* worth ₹${voucher.amount} was auto-applied.`);
+} else {
+  // ✅ Send list for any other combination (shared multiple / phone only / email only)
+  const allVouchers = [
+    ...shared.map(v => ({ v, source: 'shared' })),
+    ...fromPhone.map(v => ({ v, source: 'phone' })),
+    ...fromEmail.map(v => ({ v, source: 'email' }))
+  ];
 
-        const rows = allVouchers.map(({ v, source }, i) => ({
-          id: `voucher__${v.code}`,
-          title: `${i + 1}. ${v.code} - ₹${v.amount}`,
-          description: `From ${source === "shared" ? "Phone+Email" : source}`
-        }));
+  const rows = allVouchers.map(({ v, source }, i) => ({
+    id: `voucher__${v.code}`,
+    title: `${i + 1}. ${v.code} - ₹${v.amount}`,
+    description: `From ${source === "shared" ? "Phone+Email" : source}`
+  }));
 
-        rows.push({
-          id: "voucher__none",
-          title: "🚫 Don’t use any voucher",
-          description: "Continue without applying one"
-        });
+  rows.push({
+    id: "voucher__none",
+    title: "🚫 Don’t use any voucher",
+    description: "Continue without applying one"
+  });
 
-        await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
-          {
-            title: "Available Vouchers",
-            rows
-          }
-        ]);
+  await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
+    {
+      title: "Available Vouchers",
+      rows
+    }
+  ]);
 
-        return res.sendStatus(200); // 🔒 Prevent flow continuation until voucher picked
-      }
+  return res.sendStatus(200); // 🔒 Pause flow until user selects voucher
+}
+
     }
   }
 
