@@ -54,6 +54,16 @@ router.post("/", async (req, res) => {
 
     let input = buttonReply || listReply || text;
     const lowerInput = input.toLowerCase();
+
+       // 🔐 Emergency Session Kill Trigger
+if (["xxx", "kill"].includes(lowerInput)) {
+  endSession?.(from);              // Kills booking session
+  cancelVoucherSession?.(from);    // Kills voucher session
+  clearBookingVoucher(from);
+  await sendText(from, "🛑 Session forcefully reset. Type *menu* to start again.");
+  return res.sendStatus(200);
+}
+
     
  if (input.startsWith("voucher__")) {
   if (input === "voucher__none") {
@@ -69,23 +79,28 @@ router.post("/", async (req, res) => {
       .gte("expiry_date", new Date().toISOString().split("T")[0])
       .maybeSingle();
 
-    if (voucher && !error) {
-      setBookingVoucher(from, {
-        code: voucher.code,
-        amount: voucher.amount,
-        source:
-          voucher.phone && voucher.email
-            ? "shared"
-            : voucher.phone === getSessionData(from).clientPhone
-            ? "phone"
-            : "email",
-      });
-      await sendText(from, `✅ Voucher *${voucher.code}* worth ₹${voucher.amount} has been applied.`);
-    } else {
-      await sendText(from, "⚠️ Could not apply the selected voucher. Please try again from the list.");
-      return res.sendStatus(200);
-    }
+   if (voucher && !error) {
+  const alreadyApplied = getBookingVoucher(from);
+  if (alreadyApplied?.code === voucher.code) {
+    await sendText(from, `🎟️ Voucher *${voucher.code}* is already applied.`);
+    return res.sendStatus(200);
   }
+
+  setBookingVoucher(from, {
+    code: voucher.code,
+    amount: voucher.amount,
+    source:
+      voucher.phone && voucher.email
+        ? "shared"
+        : voucher.phone === getSessionData(from).clientPhone
+        ? "phone"
+        : "email",
+  }); // ✅ this closing parenthesis was missing
+} else {
+  await sendText(from, "⚠️ Could not apply the selected voucher. Please try again from the list.");
+  return res.sendStatus(200);
+}
+
 
   // Proceed to next question
   if (isEditingSession(from)) {
@@ -98,86 +113,8 @@ router.post("/", async (req, res) => {
 
   return res.sendStatus(200);
 }
+ 
 
-// 🧠 Guard: Prevent invalid input & resend voucher list (only if session is active)
-if (
-  isSessionActive(from) &&
-  !getBookingVoucher(from) &&
-  !isVoucherSkipped(from)
-) {
-  const step = getCurrentStep(from);
-  const session = getSessionObject(from);
-
-  const expectingVoucher =
-    step === "trekCategory" &&
-    session?.data?.clientPhone &&
-    session?.data?.clientEmail &&
-    !session?.data?.trekCategory;
-
-  if (expectingVoucher) {
-    await sendText(
-      from,
-      "⚠️ Please choose a voucher from the list below or select *'🚫 Don’t use any voucher'* to continue."
-    );
-
-    const phone = session.data.clientPhone;
-    const email = session.data.clientEmail;
-
-    const { data: vouchers, error } = await supabase
-      .from("vouchers")
-      .select("*")
-      .or(`phone.eq.${phone},email.eq.${email}`)
-      .eq("used", false)
-      .gte("expiry_date", new Date().toISOString().split("T")[0]);
-
-    if (!error && vouchers?.length > 0) {
-      const shared = vouchers.filter(v => v.phone === phone && v.email === email);
-      const fromPhone = vouchers.filter(v => v.phone === phone && v.email !== email);
-      const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
-
-      const allVouchers = [
-        ...shared.map(v => ({ v, source: 'shared' })),
-        ...fromPhone.map(v => ({ v, source: 'phone' })),
-        ...fromEmail.map(v => ({ v, source: 'email' })),
-      ];
-
-      const rows = allVouchers.map(({ v, source }, i) => ({
-        id: `voucher__${v.code}`,
-        title: `${i + 1}. ${v.code} - ₹${v.amount}`,
-        description: `From ${source === "shared" ? "Phone+Email" : source}`,
-      }));
-
-      rows.push({
-        id: "voucher__none",
-        title: "🚫 Don’t use any voucher",
-        description: "Continue without applying one",
-      });
-
-      await sendList(from, `🎟️ Voucher Options (${allVouchers.length})`, [
-        { title: "Available Vouchers", rows },
-      ]);
-    }
-
-    return res.sendStatus(200);
-  }
-}
-
-
-
-
-    // 🔐 Emergency Session Kill Trigger
-if (["xxx", "kill"].includes(lowerInput)) {
-  endSession?.(from);              // Kills booking session
-  cancelVoucherSession?.(from);    // Kills voucher session
-  clearBookingVoucher(from);
-  await sendText(from, "🛑 Session forcefully reset. Type *menu* to start again.");
-  return res.sendStatus(200);
-}
-
-    
-    // 🔁 Voucher flow: delegate externally
-const handledByVoucher = await handleVoucherFlow(input, from);
-if (handledByVoucher) return res.sendStatus(200);
 
     // 🔄 Handle pagination navigation for edit menu
     if (input === "edit_page_next") {
@@ -460,7 +397,7 @@ if (step === "clientEmail") {
       const shared = vouchers.filter(v => v.phone === phone && v.email === email);
       const fromPhone = vouchers.filter(v => v.phone === phone && v.email !== email);
       const fromEmail = vouchers.filter(v => v.email === email && v.phone !== phone);
-
+console.log(`[VOUCHER CHECK] Phone: ${phone}, Email: ${email}, Shared: ${shared.length}, Phone-only: ${fromPhone.length}, Email-only: ${fromEmail.length}`);
       // ✅ Auto-apply shared if exactly one
       if (shared.length === 1) {
         const voucher = shared[0];
