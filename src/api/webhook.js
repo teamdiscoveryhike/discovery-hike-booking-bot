@@ -443,11 +443,6 @@ if (step === "clientEmail") {
   return res.sendStatus(200);
 }
 
-
-
-
-
-
     if (step === "trekCategory") {
       if (!["trek", "expedition"].includes(input.toLowerCase())) {
         await sendText(from, "⚠️ Please choose either *Trek* or *Expedition*.");
