@@ -131,6 +131,10 @@ if (["xxx", "kill"].includes(lowerInput)) {
       input = "edit_booking";
     }
 
+    if (input === "manual_voucher") {
+  return await handleVoucherFlow(from);
+}
+
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
         await sendButtons(from, " *Discovery Hike Booking Bot*", [
