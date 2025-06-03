@@ -765,9 +765,24 @@ async function sendTrekList(userId) {
 async function sendSummaryAndConfirm(from, data) {
   const groupSize = parseInt(data.groupSize || 0);
   const ratePerPerson = parseInt(data.ratePerPerson || 0);
-  const advancePaid = parseInt(data.advancePaid || 0);
-  const total = groupSize * ratePerPerson;
-  const balance = total - advancePaid;
+    const voucher = getBookingVoucher(from);
+  let total = groupSize * ratePerPerson;
+  let advancePaid = parseInt(data.advancePaid || 0);
+  let balance = total - advancePaid;
+
+  if (voucher?.code) {
+    if (voucher.amount >= total) {
+      advancePaid = 0;
+      balance = 0;
+    } else {
+      const maxAdvance = total - voucher.amount;
+      if (advancePaid > maxAdvance) {
+        advancePaid = maxAdvance;
+      }
+      balance = total - voucher.amount - advancePaid;
+    }
+  }
+
 
   let summary = `🧾 *Booking Summary:*
 • *Client Name:* ${data.clientName}
@@ -784,15 +799,17 @@ async function sendSummaryAndConfirm(from, data) {
 • *Sharing:* ${data.sharingType}
 • *Payment Mode:* ${data.paymentMode}
 • *Notes:* ${data.specialNotes || '-'}`;
-const voucher = getBookingVoucher(from);
 if (voucher?.code) {
   summary += `
 
 🎟️ *Voucher Applied:*
 • Code: ${voucher.code}
 • Amount: ₹${voucher.amount}
-• Covered Fully: ${voucher.coveredFully ? "Yes" : "No"}`;
+• Covered Fully: ${voucher.amount >= total ? "Yes" : "No"}
+• Adjusted Advance: ₹${advancePaid}
+• Adjusted Balance: ₹${balance}`;
 }
+
 
 
   await sendText(from, summary);
@@ -802,6 +819,8 @@ if (voucher?.code) {
     { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
   ]);
 }
+
+
 function generateBookingCode() {
   const now = new Date();
   const year = now.getFullYear().toString().slice(-2); // last 2 digits
