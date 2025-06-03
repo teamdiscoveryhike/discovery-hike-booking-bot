@@ -385,13 +385,13 @@ if (step === "clientEmail") {
   const email = data.clientEmail;
 
   const existing = getBookingVoucher(from);
-   if (!existing && !isVoucherSkipped(from)) {
+  if (!existing && !isVoucherSkipped(from)) {
     const { data: vouchers, error } = await supabase
       .from("vouchers")
       .select("*")
-      .or(`phone.eq.${phone},email.eq.${email}`)
       .eq("used", false)
-      .gte("expiry_date", new Date().toISOString().split("T")[0]);
+      .gte("expiry_date", new Date().toISOString().split("T")[0])
+      .or(`phone.eq.${phone},email.eq.${email}`);  // ✅ This includes shared too
 
     if (!error && vouchers?.length > 0) {
       const shared = vouchers.filter(v => v.phone === phone && v.email === email);
@@ -404,9 +404,9 @@ if (step === "clientEmail") {
         ...fromEmail.map(v => ({ v, source: 'email' }))
       ];
 
-      if (allVouchers.length === 1 && shared.length === 1) {
-        // ✅ Auto-apply single shared voucher
-        const voucher = shared[0];
+      // ✅ Auto-apply only if there's exactly ONE total voucher, and it's shared
+      if (allVouchers.length === 1 && allVouchers[0].source === "shared") {
+        const { v: voucher } = allVouchers[0];
         setBookingVoucher(from, {
           code: voucher.code,
           amount: voucher.amount,
@@ -420,7 +420,7 @@ if (step === "clientEmail") {
 
         await sendText(from, `🎟️ Voucher *${voucher.code}* worth ₹${voucher.amount} was auto-applied.`);
       } else {
-        // ✅ Show list for all other cases
+        // ✅ Otherwise, show list to user
         const rows = allVouchers.map(({ v, source }, i) => ({
           id: `voucher__${v.code}`,
           title: `${i + 1}. ${v.code} - ₹${v.amount}`,
@@ -437,11 +437,10 @@ if (step === "clientEmail") {
           { title: "Available Vouchers", rows }
         ]);
 
-        return res.sendStatus(200); // ⛔ Important: pause flow here
+        return res.sendStatus(200); // ⛔ Important: Pause until selection
       }
     }
   }
-
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -453,6 +452,7 @@ if (step === "clientEmail") {
 
   return res.sendStatus(200);
 }
+
 
 
 
