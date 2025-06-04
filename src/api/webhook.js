@@ -386,9 +386,8 @@ if (step === "clientPhone") {
   }
 
   saveResponse(from, cleaned, !isEditing);
-  clearBookingVoucher(from); // 🧹 Clear old voucher tied to previous phone/email
+  clearBookingVoucher(from); // 🧹 Clear stale voucher tied to old phone/email
 
-  // ✅ Voucher re-evaluation logic (only if not skipped or already applied)
   const updatedData = getSessionData(from);
   const updatedPhone = updatedData.clientPhone;
   const updatedEmail = updatedData.clientEmail;
@@ -396,9 +395,10 @@ if (step === "clientPhone") {
   const voucherExists = getBookingVoucher(from);
   const voucherSkipped = isVoucherSkipped(from);
 
-  if (!voucherExists && !voucherSkipped) {
+  // ✅ Only re-evaluate if in edit mode AND email is already present
+  if (isEditing && updatedEmail && !voucherExists && !voucherSkipped) {
     const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
-    if (paused) return res.sendStatus(200); // 🛑 Wait for user to select voucher
+    if (paused) return res.sendStatus(200);
   }
 
   if (isEditing) {
@@ -411,6 +411,7 @@ if (step === "clientPhone") {
 
   return res.sendStatus(200);
 }
+
 
 
 
