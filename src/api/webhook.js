@@ -228,8 +228,15 @@ if (voucher?.code) {
       advance = maxAdvance;
     }
     balance = total - voucher.amount - advance;
+
+    if (advance > 0) {
+      paymentMode = "advance+voucher";
+    } else {
+      paymentMode = "voucher+onspot";
+    }
   }
 }
+
 
 
   const bookingData = {
@@ -775,11 +782,13 @@ async function sendTrekList(userId) {
 async function sendSummaryAndConfirm(from, data) {
   const groupSize = parseInt(data.groupSize || 0);
   const ratePerPerson = parseInt(data.ratePerPerson || 0);
-    const voucher = getBookingVoucher(from);
+  const voucher = getBookingVoucher(from);
+
   let total = groupSize * ratePerPerson;
   let advancePaid = parseInt(data.advancePaid || 0);
   let balance = total - advancePaid;
 
+  // 🔄 Calculate adjusted advance/balance if voucher exists
   if (voucher?.code) {
     if (voucher.amount >= total) {
       advancePaid = 0;
@@ -793,6 +802,15 @@ async function sendSummaryAndConfirm(from, data) {
     }
   }
 
+  // 🧠 Dynamic payment mode string for display
+  let displayPaymentMode = data.paymentMode;
+  if (voucher?.code) {
+    if (voucher.amount >= total) {
+      displayPaymentMode = "voucher";
+    } else {
+      displayPaymentMode = advancePaid > 0 ? "advance+voucher" : "voucher+onspot";
+    }
+  }
 
   let summary = `🧾 *Booking Summary:*
 • *Client Name:* ${data.clientName}
@@ -807,10 +825,11 @@ async function sendSummaryAndConfirm(from, data) {
 • *Advance Paid:* ₹${advancePaid}
 • *Balance:* ₹${balance}
 • *Sharing:* ${data.sharingType}
-• *Payment Mode:* ${data.paymentMode}
+• *Payment Mode:* ${displayPaymentMode}
 • *Notes:* ${data.specialNotes || '-'}`;
-if (voucher?.code) {
-  summary += `
+
+  if (voucher?.code) {
+    summary += `
 
 🎟️ *Voucher Applied:*
 • Code: ${voucher.code}
@@ -818,9 +837,7 @@ if (voucher?.code) {
 • Covered Fully: ${voucher.amount >= total ? "Yes" : "No"}
 • Adjusted Advance: ₹${advancePaid}
 • Adjusted Balance: ₹${balance}`;
-}
-
-
+  }
 
   await sendText(from, summary);
   await sendButtons(from, "✅ Confirm booking?", [
@@ -829,6 +846,7 @@ if (voucher?.code) {
     { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
   ]);
 }
+
 
 
 function generateBookingCode() {
