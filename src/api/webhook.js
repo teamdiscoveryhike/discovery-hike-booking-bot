@@ -424,19 +424,19 @@ if (step === "clientEmail") {
   }
 
   saveResponse(from, input, !isEditing);
-const updatedData = getSessionData(from);
-const updatedPhone = updatedData.clientPhone;
-const updatedEmail = updatedData.clientEmail;
+  clearBookingVoucher(from); // ✅ Always clear voucher on email update
 
-const voucherExists = getBookingVoucher(from);
-const voucherSkipped = isVoucherSkipped(from);
+  const updatedData = getSessionData(from);
+  const updatedPhone = updatedData.clientPhone;
+  const updatedEmail = updatedData.clientEmail;
 
-if (!voucherExists && !voucherSkipped) {
-  const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
-  if (paused) return res.sendStatus(200);
-}
+  const voucherExists = getBookingVoucher(from);
+  const voucherSkipped = isVoucherSkipped(from);
 
-  // ✅ No inline voucher lookup here anymore — you’ve already globally rechecked
+  if (!voucherExists && !voucherSkipped) {
+    const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
+    if (paused) return res.sendStatus(200);
+  }
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -448,6 +448,7 @@ if (!voucherExists && !voucherSkipped) {
 
   return res.sendStatus(200);
 }
+
 
 
     if (step === "trekCategory") {
