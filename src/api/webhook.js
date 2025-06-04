@@ -822,9 +822,9 @@ async function sendSummaryAndConfirm(from, data) {
   let displayPaymentMode = data.paymentMode;
   if (voucher?.code) {
     if (voucher.amount >= total) {
-      displayPaymentMode = "voucher";
+      displayPaymentMode = "Voucher";
     } else {
-      displayPaymentMode = advancePaid > 0 ? "advance+voucher" : "voucher+onspot";
+      displayPaymentMode = advancePaid > 0 ? "Advance+Voucher" : "Voucher+Onspot";
     }
   }
 
@@ -857,8 +857,8 @@ async function sendSummaryAndConfirm(from, data) {
 
   await sendText(from, summary);
   await sendButtons(from, "✅ Confirm booking?", [
-    { type: "reply", reply: { id: "confirm_yes", title: "Yes" } },
-    { type: "reply", reply: { id: "confirm_no", title: "No" } },
+    { type: "reply", reply: { id: "confirm_yes", title: "🤩 Yes" } },
+    { type: "reply", reply: { id: "confirm_no", title: "🥵 No" } },
     { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
   ]);
 }
