@@ -3,17 +3,19 @@
 const voucherSessions = {}; // In-memory store
 
 export function startVoucherSession(userId, type = "generate") {
+  let step;
+  if (type === "generate") step = "contact_type";
+  else if (type === "search") step = "lookup";
+  else step = "holder_contact";
+
   voucherSessions[userId] = {
     type,
-    step: type === "generate"
-      ? "phone"
-      : type === "search"
-      ? "lookup"
-      : "holder_contact",
+    step,
     data: {},
     startedAt: Date.now()
   };
 }
+
 
 export function isVoucherSession(userId) {
   return Boolean(voucherSessions[userId]);
