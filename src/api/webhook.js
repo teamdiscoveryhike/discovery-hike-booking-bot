@@ -386,7 +386,20 @@ if (step === "clientPhone") {
   }
 
   saveResponse(from, cleaned, !isEditing);
-  clearBookingVoucher(from); // 🧹 Important: Clear any stale voucher tied to previous phone/email
+  clearBookingVoucher(from); // 🧹 Clear old voucher tied to previous phone/email
+
+  // ✅ Voucher re-evaluation logic (only if not skipped or already applied)
+  const updatedData = getSessionData(from);
+  const updatedPhone = updatedData.clientPhone;
+  const updatedEmail = updatedData.clientEmail;
+
+  const voucherExists = getBookingVoucher(from);
+  const voucherSkipped = isVoucherSkipped(from);
+
+  if (!voucherExists && !voucherSkipped) {
+    const paused = await reevaluateVoucher(from, updatedPhone, updatedEmail);
+    if (paused) return res.sendStatus(200); // 🛑 Wait for user to select voucher
+  }
 
   if (isEditing) {
     clearEditingFlag(from);
@@ -398,6 +411,7 @@ if (step === "clientPhone") {
 
   return res.sendStatus(200);
 }
+
 
 
 if (step === "clientEmail") {
