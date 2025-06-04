@@ -194,12 +194,17 @@ if (step === "phone") {
       saveVoucherStep(from, "amount", amt);
       setVoucherStep(from, "expiry_date");
 setVoucherStep(from, "expiry_choice");
-await sendButtons(from, "📆 Choose expiry duration", [
-  { type: "reply", reply: { id: "expiry_1y", title: "1 Year" } },
-  { type: "reply", reply: { id: "expiry_2y", title: "2 Years" } },
-  { type: "reply", reply: { id: "expiry_5y", title: "5 Years" } },
-  { type: "reply", reply: { id: "expiry_10y", title: "10 Years" } },
-  { type: "reply", reply: { id: "expiry_lifetime", title: "Lifetime" } }
+await sendList(from, "📆 Choose expiry duration", [
+  {
+    title: "Expiry Durations",
+    rows: [
+      { id: "expiry_1y", title: "1 Year" },
+      { id: "expiry_2y", title: "2 Years" },
+      { id: "expiry_5y", title: "5 Years" },
+      { id: "expiry_10y", title: "10 Years" },
+      { id: "expiry_lifetime", title: "Lifetime" }
+    ]
+  }
 ]);
 return true;
     }
