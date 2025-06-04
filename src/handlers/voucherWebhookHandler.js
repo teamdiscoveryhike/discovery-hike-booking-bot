@@ -146,6 +146,26 @@ if (type === "generate" && step === "contact_type") {
   }
 }
 
+if (step === "phone") {
+  const cleaned = input.replace(/[\s-]/g, '');
+  if (!/^\+\d{10,15}$/.test(cleaned)) {
+    await sendText(from, "⚠️ Invalid phone number. Format: +91 98765 43210");
+    return true;
+  }
+
+  saveVoucherStep(from, "phone", cleaned);
+
+  const contactType = getVoucherData(from).contact_type;
+  if (contactType === "both") {
+    setVoucherStep(from, "email");
+    await sendText(from, "📧 Enter email address:");
+  } else {
+    setVoucherStep(from, "amount");
+    await sendText(from, "💰 Enter the Voucher Amount (₹):");
+  }
+  return true;
+}
+
 
     if (step === "email") {
   const contactType = data.contact_type;
