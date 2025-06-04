@@ -221,7 +221,7 @@ if (voucher?.code) {
   if (voucher.amount >= total) {
     advance = 0;
     balance = 0;
-    paymentMode = "voucher";
+    paymentMode = "Voucher";
   } else {
     const maxAdvance = total - voucher.amount;
     if (advance > maxAdvance) {
@@ -230,9 +230,9 @@ if (voucher?.code) {
     balance = total - voucher.amount - advance;
 
     if (advance > 0) {
-      paymentMode = "advance+voucher";
+      paymentMode = "Advance+Voucher";
     } else {
-      paymentMode = "voucher+onspot";
+      paymentMode = "Voucher+On-spot";
     }
   }
 }

@@ -50,9 +50,9 @@ export async function handleVoucherFlow(input, from) {
   startVoucherSession(from, "generate");
   setVoucherStep(from, "contact_type");
   await sendButtons(from, "📄 Select to Enter:", [
-    { type: "reply", reply: { id: "voucher_for_both", title: "Both" } },
-    { type: "reply", reply: { id: "voucher_for_phone", title: "WhatsApp" } },
-    { type: "reply", reply: { id: "voucher_for_email", title: "Email" } }
+    { type: "reply", reply: { id: "voucher_for_both", title: "🔁 Both" } },
+    { type: "reply", reply: { id: "voucher_for_phone", title: "📱 WhatsApp" } },
+    { type: "reply", reply: { id: "voucher_for_email", title: "📧 Email" } }
   ]);
   return true;
 }
@@ -108,7 +108,7 @@ if (type === "search" && step === "lookup") {
         year: "numeric"
       });
 
-      message += `• Code: ${v.code}\n  Amount: ₹${v.amount}\n  Expires: ${formattedDate}\n  Used: ${v.used ? "✅ Yes" : "❌ No"}\n\n`;
+      message += `• Code: ${v.code}\n  Amount: ₹${v.amount}\n  Expires: ${formattedDate}\n  Used: ${v.used ? "👺 Yes" : "🤢 No"}\n\n`;
     }
 
     await sendText(from, message.trim());
@@ -310,7 +310,7 @@ if (error) {
         month: "short",
         year: "numeric"
       });
-      summary += `🔹 *${i + 1}.* Code: ${v.code}\n   Amount: ₹${v.amount}\n   Expires: ${date}\n   Used: ❌ No\n\n`;
+      summary += `🔹 *${i + 1}.* Code: ${v.code}\n   Amount: ₹${v.amount}\n   Expires: ${date}\n   Used: 🤢 No\n\n`;
     });
     await sendText(from, summary.trim());
 
@@ -360,7 +360,9 @@ resetOtpAttempts(from, "holder");
 
 
     setVoucherStep(from, "recipient_contact");
-    await sendText(from, "✅ Holder verified.\n📱 Now enter recipient's phone or email:");
+    await sendText(from, "✅ Holder verified.\n");
+    await sendText(from, "📱 Now enter recipient's phone or email:");
+
     return true;
   }
 
