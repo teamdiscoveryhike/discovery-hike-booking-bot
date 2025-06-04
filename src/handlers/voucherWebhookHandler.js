@@ -46,11 +46,17 @@ export async function handleVoucherFlow(input, from) {
     return true;
   }
 
-  if (input === "voucher_generate") {
-    startVoucherSession(from, "generate");
-    await sendText(from, "📄 Let's generate a new voucher.\n📱 Enter *Phone Number* (with +91):");
-    return true;
-  }
+ if (input === "voucher_generate") {
+  startVoucherSession(from, "generate");
+  setVoucherStep(from, "contact_type");
+  await sendButtons(from, "📄 Select to Enter:", [
+    { type: "reply", reply: { id: "voucher_for_both", title: "Both" } },
+    { type: "reply", reply: { id: "voucher_for_phone", title: "WhatsApp" } },
+    { type: "reply", reply: { id: "voucher_for_email", title: "Email" } }
+  ]);
+  return true;
+}
+
 
   if (input === "voucher_search") {
     startVoucherSession(from, "search");
@@ -117,32 +123,47 @@ if (type === "search" && step === "lookup") {
 
 
   // === GENERATE FLOW ===
-  if (type === "generate") {
-    if (step === "phone") {
-      const cleaned = input.replace(/[\s-]/g, '');
-      if (!/^\+\d{10,15}$/.test(cleaned)) {
-        await sendText(from, "⚠️ Invalid phone. Format: +91 98765 43210");
-        return true;
-      }
-      saveVoucherStep(from, "phone", cleaned);
-      setVoucherStep(from, "email");
-      await sendText(from, "📧 Enter email address (or type *skip*):");
-      return true;
-    }
+if (type === "generate" && step === "contact_type") {
+  const id = input.toLowerCase();
+  if (id === "voucher_for_both") {
+    saveVoucherStep(from, "contact_type", "both");
+    setVoucherStep(from, "phone");
+    await sendText(from, "📱 Enter phone number (with +91):");
+    return true;
+  } else if (id === "voucher_for_phone") {
+    saveVoucherStep(from, "contact_type", "phone");
+    setVoucherStep(from, "phone");
+    await sendText(from, "📱 Enter phone number (with +91):");
+    return true;
+  } else if (id === "voucher_for_email") {
+    saveVoucherStep(from, "contact_type", "email");
+    setVoucherStep(from, "email");
+    await sendText(from, "📧 Enter email address:");
+    return true;
+  } else {
+    await sendText(from, "⚠️ Please select a valid option: Both, Phone, or Email.");
+    return true;
+  }
+}
+
 
     if (step === "email") {
-      if (lowerInput === "skip") {
-        saveVoucherStep(from, "email", null);
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
-        await sendText(from, "⚠️ Invalid email format. Try again.");
-        return true;
-      } else {
-        saveVoucherStep(from, "email", input);
-      }
-      setVoucherStep(from, "amount");
-      await sendText(from, "💰 Enter flat discount amount (₹):");
-      return true;
-    }
+  const contactType = data.contact_type;
+
+  if (contactType !== "email" && input.toLowerCase() === "skip") {
+    saveVoucherStep(from, "email", null);
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
+    await sendText(from, "⚠️ Invalid email format. Try again.");
+    return true;
+  } else {
+    saveVoucherStep(from, "email", input);
+  }
+
+  setVoucherStep(from, "amount");
+  await sendText(from, "💰 Enter the Voucher Amount (₹):");
+  return true;
+}
+
 
     if (step === "amount") {
       const amt = parseInt(input);
@@ -152,36 +173,70 @@ if (type === "search" && step === "lookup") {
       }
       saveVoucherStep(from, "amount", amt);
       setVoucherStep(from, "expiry_date");
-      await sendText(from, "📆 Enter expiry date (YYYY-MM-DD):");
-      return true;
+setVoucherStep(from, "expiry_choice");
+await sendButtons(from, "📆 Choose expiry duration", [
+  { type: "reply", reply: { id: "expiry_1y", title: "1 Year" } },
+  { type: "reply", reply: { id: "expiry_2y", title: "2 Years" } },
+  { type: "reply", reply: { id: "expiry_5y", title: "5 Years" } },
+  { type: "reply", reply: { id: "expiry_10y", title: "10 Years" } },
+  { type: "reply", reply: { id: "expiry_lifetime", title: "Lifetime" } }
+]);
+return true;
     }
 
-    if (step === "expiry_date") {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-        await sendText(from, "⚠️ Invalid date format. Use YYYY-MM-DD.");
-        return true;
-      }
+    if (step === "expiry_choice") {
+  const today = new Date();
+  let expiryDate;
 
-      const voucher = {
-        phone: data.phone,
-        email: data.email || null,
-        amount: data.amount,
-        expiry_date: input,
-        code: generateVoucherCode(),
-        created_by: from
-      };
-
-      const { error } = await supabase.from("vouchers").insert([voucher]);
-      if (error) {
-        await sendText(from, "❌ Error saving voucher. Try again.");
-      } else {
-        await sendText(from, `✅ *Voucher created!*\n\n🎟️ Code: *${voucher.code}*\n💰 Amount: ₹${voucher.amount}\n📅 Expiry: ${voucher.expiry_date}`);
-      }
-
-      endVoucherSession(from);
+  switch (input.toLowerCase()) {
+    case "expiry_1y":
+      expiryDate = new Date(today.setFullYear(today.getFullYear() + 1));
+      break;
+    case "expiry_2y":
+      expiryDate = new Date(today.setFullYear(today.getFullYear() + 2));
+      break;
+    case "expiry_5y":
+      expiryDate = new Date(today.setFullYear(today.getFullYear() + 5));
+      break;
+    case "expiry_10y":
+      expiryDate = new Date(today.setFullYear(today.getFullYear() + 10));
+      break;
+    case "expiry_lifetime":
+      expiryDate = new Date(today.setFullYear(today.getFullYear() + 150));
+      break;
+    default:
+      await sendText(from, "⚠️ Invalid choice. Please select from the options.");
       return true;
-    }
   }
+
+  const formattedDate = expiryDate.toISOString().split("T")[0]; // for DB
+const formattedDisplayDate = expiryDate.toLocaleDateString("en-GB", {
+  day: 'numeric', month: 'short', year: 'numeric'
+});
+
+saveVoucherStep(from, "expiry_date", formattedDate);
+
+const voucher = {
+  phone: data.phone,
+  email: data.email || null,
+  amount: data.amount,
+  expiry_date: formattedDate,
+  code: generateVoucherCode(),
+  created_by: from
+};
+
+const { error } = await supabase.from("vouchers").insert([voucher]);
+if (error) {
+  await sendText(from, "❌ Error saving voucher. Try again.");
+} else {
+  await sendText(from, `✅ *Voucher created!*\n\n🎟️ Code: *${voucher.code}*\n💰 Amount: ₹${voucher.amount}\n📅 Expiry: ${formattedDisplayDate}`);
+}
+
+  endVoucherSession(from);
+  return true;
+}
+
+  
 
   // === SHARE FLOW WITH OTP ===
  if (type === "share") {
