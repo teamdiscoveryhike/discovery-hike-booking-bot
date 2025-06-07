@@ -14,6 +14,7 @@ import {
   setEditPage,
   getEditPage
 } from "../services/sessionManager.js";
+import { sendBookingConfirmationEmail } from "../services/email.js";
 import { cancelVoucherSession } from "../services/voucherSessionManager.js";
 
 import {
@@ -263,6 +264,31 @@ if (voucher?.code) {
 
     // ✅ Keep internal team message the same
     await sendText(from, `✅ Booking confirmed!\n🆔 Booking ID: ${bookingCode}`);
+    // ✅ Send email confirmation
+try {
+  await sendBookingConfirmationEmail(
+    data.clientEmail,
+    bookingCode,
+    {
+      clientName: data.clientName,
+      clientPhone: data.clientPhone,
+      clientEmail: data.clientEmail,
+      trekName: data.trekName,
+      trekDate: data.trekDate,
+      groupSize: groupSize,
+      ratePerPerson: rate,
+      advancePaid: advance,
+      paymentMode: paymentMode,
+      balance: balance,
+      sharingType: data.sharingType,
+      specialNotes: data.specialNotes || "-",
+      voucher: voucher?.code ? { code: voucher.code, amount: voucher.amount } : undefined,
+      senderName: "Team Discovery Hike"
+    }
+  );
+} catch (emailErr) {
+  console.error("❌ Email send failed:", emailErr.message);
+}
 
     // ✅ Send template confirmation to client
     await sendBookingTemplate(data.clientPhone, [
