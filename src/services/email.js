@@ -15,12 +15,11 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
     paymentMode,
     specialNotes,
     senderName = 'Admin',
-    voucher // { code: string, amount: number }
+    voucher,
+    balance
   } = data;
 
   const totalAmount = ratePerPerson * groupSize;
-  const balanceAmount = totalAmount - advancePaid;
-
   const trekDateObj = new Date(trekDate);
   const day = ("0" + trekDateObj.getDate()).slice(-2);
   const month = ("0" + (trekDateObj.getMonth() + 1)).slice(-2);
@@ -31,6 +30,10 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
     ? `<p style="font-size:16px; color:#333333;">
         🎟️ Voucher <strong>${voucher.code}</strong> was applied worth ₹${voucher.amount}/-.
       </p>`
+    : "";
+
+  const voucherRow = voucher?.code
+    ? `<tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Voucher Applied</td><td style="border:1px solid #dddddd; text-align:center; color:#008000;">₹${voucher.amount}/-</td></tr>`
     : "";
 
   const emailHtml = `
@@ -67,11 +70,13 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
                     </p>
                     <h3 style="color:#003366; border-bottom:2px solid #FF8C00; padding-bottom:5px;">Detailed Overview of your Booking:</h3>
                     <table width="100%" cellpadding="10" cellspacing="0" border="0" style="border-collapse: collapse; margin-top:10px;">
+                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Booking ID</td><td style="border:1px solid #dddddd; text-align:center;">${bookingCode}</td></tr>
                       <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Rate per person</td><td style="border:1px solid #dddddd; text-align:center;">₹${ratePerPerson}/-</td></tr>
                       <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Number of people (Pax)</td><td style="border:1px solid #dddddd; text-align:center;">${groupSize}</td></tr>
-                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Advance Paid</td><td style="border:1px solid #dddddd; text-align:center; color:#FF8C00;">₹${advancePaid}/-</td></tr>
-                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Remaining Amount</td><td style="border:1px solid #dddddd; text-align:center; color:#FF8C00;">₹${balanceAmount}/-</td></tr>
                       <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Total Amount</td><td style="border:1px solid #dddddd; text-align:center;">₹${totalAmount}/-</td></tr>
+                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Advance Paid</td><td style="border:1px solid #dddddd; text-align:center; color:#FF8C00;">₹${advancePaid}/-</td></tr>
+                      ${voucherRow}
+                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Remaining Amount</td><td style="border:1px solid #dddddd; text-align:center; color:#FF8C00;">₹${balance}/-</td></tr>
                     </table>
                     <h3 style="color:#003366; border-bottom:2px solid #FF8C00; padding-bottom:5px; margin-top:30px;">Cancellation Policy:</h3>
                     <ul style="color:#333333;font-size:16px; line-height:1.5;">
