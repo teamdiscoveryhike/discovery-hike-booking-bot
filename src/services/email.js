@@ -123,7 +123,7 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
 
   try {
     const { error } = await resend.emails.send({
-      from: process.env.RESEND_VERIFIED_FROM_EMAIL || 'Discovery Hike <noreply@discoveryhike.in>',
+      from: process.env.RESEND_VERIFIED_FROM_EMAIL || 'Discovery Hike <no-reply@discoveryhikes.in>',
       to,
       subject: `Booking Confirmation - ${trekName} with Discovery Hike`,
       html: emailHtml
