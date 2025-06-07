@@ -283,7 +283,7 @@ try {
       sharingType: data.sharingType,
       specialNotes: data.specialNotes || "-",
       voucher: voucher?.code ? { code: voucher.code, amount: voucher.amount } : undefined,
-      senderName: "Team Discovery Hike"
+      senderName: "Admin"
     }
   );
 } catch (emailErr) {
