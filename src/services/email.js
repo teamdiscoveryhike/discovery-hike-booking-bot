@@ -14,7 +14,7 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
     sharingType,
     paymentMode,
     specialNotes,
-    senderName = 'Team Discovery Hike',
+    senderName = 'Admin',
     voucher // { code: string, amount: number }
   } = data;
 
