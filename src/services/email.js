@@ -76,7 +76,7 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
                       <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Total Amount</td><td style="border:1px solid #dddddd; text-align:center;">₹${totalAmount}/-</td></tr>
                       <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Advance Paid</td><td style="border:1px solid #dddddd; text-align:center; color:#FF8C00;">₹${advancePaid}/-</td></tr>
                       ${voucherRow}
-                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Remaining Amount</td><td style="border:1px solid #dddddd; text-align:center; color:#FF8C00;">₹${balance}/-</td></tr>
+                      <tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Remaining Amount</td><td style="border:1px solid #dddddd; text-align:center; color:#FF0000;">₹${balance}/-</td></tr>
                     </table>
                     <h3 style="color:#003366; border-bottom:2px solid #FF8C00; padding-bottom:5px; margin-top:30px;">Cancellation Policy:</h3>
                     <ul style="color:#333333;font-size:16px; line-height:1.5;">
