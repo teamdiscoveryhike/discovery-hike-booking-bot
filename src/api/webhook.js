@@ -261,9 +261,9 @@ const { cappedAdvance, adjustedAdvance, adjustedBalance, paymentMode } = getAdju
           trekDate: data.trekDate,
           groupSize: groupSize,
           ratePerPerson: rate,
-          advancePaid: advance,
+          advancePaid: cappedAdvance,
           paymentMode: paymentMode,
-          balance: balance,
+          balance: adjustedBalance,
           sharingType: data.sharingType,
           specialNotes: data.specialNotes || "-",
           voucher: voucher?.code ? { code: voucher.code, amount: voucher.amount } : undefined,
@@ -818,7 +818,7 @@ async function sendSummaryAndConfirm(from, data) {
 
   let total = groupSize * ratePerPerson;
   let advancePaid = parseInt(data.advancePaid || 0);
-  
+
   // 🔄 Adjusted logic
 const { adjustedAdvance, adjustedBalance, paymentMode } = getAdjustedPayment({
   total,
