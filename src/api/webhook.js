@@ -326,6 +326,23 @@ const { cappedAdvance, adjustedAdvance, adjustedBalance, paymentMode } = getAdju
       await sendText(from, "⚠️ Session expired. Please type *menu* to start over.");
       return res.sendStatus(200);
     }
+    
+    const voucher = getBookingVoucher(from);
+const session = getSessionObject(from);
+const groupSize = parseInt(session.data.groupSize || 0);
+const rate = parseInt(session.data.ratePerPerson || 0);
+const total = groupSize * rate;
+
+if (
+  isEditing &&
+  (step === "advancePaid" || step === "paymentMode") &&
+  voucher?.code &&
+  voucher.amount >= total
+) {
+  await sendText(from, `⚠️ Voucher already covers full amount. You don't need to edit this field.`);
+  return res.sendStatus(200);
+}
+
 
     const isEditing = isEditingSession(from);
 
