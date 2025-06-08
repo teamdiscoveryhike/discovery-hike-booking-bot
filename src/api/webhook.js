@@ -341,7 +341,8 @@ try {
     const isEditing = isEditingSession(from);
 
     // ✅ TREK DATE OPTIONS
- let formatted;
+    if (step === "trekDate") {
+  let formatted;
 if (input === "today") {
   formatted = new Date().toISOString().split("T")[0];
 } else if (input === "tomorrow") {
@@ -387,6 +388,7 @@ if (isEditing) {
 }
 return res.sendStatus(200);
 
+}
 
 
     // ✅ VALIDATIONS
