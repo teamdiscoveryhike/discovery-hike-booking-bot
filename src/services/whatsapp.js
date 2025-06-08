@@ -99,9 +99,20 @@ export async function sendBookingTemplate(to, variables) {
       to,
       type: "template",
       template: {
-        name: "booking_confirmation",
+        name: "booking_confirmation", // ensure this template has an image header
         language: { code: "en" },
         components: [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: {
+                  link: "https://raw.githubusercontent.com/teamdiscoveryhike/discovery-hike-booking-bot/master/Assets/logo.png"
+                }
+              }
+            ]
+          },
           {
             type: "body",
             parameters: variables.map(text => ({
@@ -116,4 +127,5 @@ export async function sendBookingTemplate(to, variables) {
     console.error("❌ sendBookingTemplate error:", err.response?.data || err.message);
   }
 }
+
 
