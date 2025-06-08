@@ -327,6 +327,7 @@ const { cappedAdvance, adjustedAdvance, adjustedBalance, paymentMode } = getAdju
       return res.sendStatus(200);
     }
     
+    const isEditing = isEditingSession(from);
     const voucher = getBookingVoucher(from);
 const session = getSessionObject(from);
 const groupSize = parseInt(session.data.groupSize || 0);
@@ -343,8 +344,6 @@ if (
   return res.sendStatus(200);
 }
 
-
-    const isEditing = isEditingSession(from);
 
     // ✅ TREK DATE OPTIONS
     if (step === "trekDate") {
