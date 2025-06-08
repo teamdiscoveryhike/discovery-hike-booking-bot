@@ -211,30 +211,37 @@ if (handled) return res.sendStatus(200);
   const rate = parseInt(data.ratePerPerson || 0);
   const total = groupSize * rate;
   const voucher = getBookingVoucher(from);
-updateCoverageFlag(from, total);
 
-let advance = parseInt(data.advancePaid || 0);
-let balance = total - advance;
-let paymentMode = data.paymentMode;
+  updateCoverageFlag(from, total);
 
-if (voucher?.code) {
-  if (voucher.amount >= total) {
-    // Full coverage by voucher
-    advance = 0;
-    balance = 0;
-    paymentMode = "Voucher";
-  } else {
-    // Partial coverage by voucher
-    const maxAdvance = total - voucher.amount;
-    if (advance > maxAdvance) {
-      advance = maxAdvance;
+  const originalAdvance = parseInt(data.advancePaid || 0);
+  let advance = originalAdvance;
+  let balance = total - advance;
+  let paymentMode = data.paymentMode;
+
+  if (voucher?.code) {
+    if (voucher.amount >= total) {
+      // Full coverage by voucher
+      advance = 0;
+      balance = 0;
+      paymentMode = "Voucher";
+    } else {
+      // Partial coverage by voucher
+      const maxAdvance = total - voucher.amount;
+      if (advance > maxAdvance) {
+        advance = maxAdvance;
+      }
+      balance = total - voucher.amount - advance;
+      paymentMode = advance > 0 ? "Advance+Voucher" : "Voucher+On-spot";
     }
-    balance = total - voucher.amount - advance;
-
-    paymentMode = advance > 0 ? "Advance+Voucher" : "Voucher+On-spot";
   }
-}
- 
+
+  // ✅ Adjusted values for display (WhatsApp, etc.)
+  let adjustedAdvance = originalAdvance + (voucher?.amount || 0);
+  if (adjustedAdvance > total) {
+    adjustedAdvance = total;
+  }
+  const adjustedBalance = total - adjustedAdvance;
 
   const bookingData = {
     client_name: data.clientName,
@@ -246,8 +253,8 @@ if (voucher?.code) {
     group_size: groupSize,
     rate_per_person: rate,
     total: total,
-    advance_paid: advance,
-    balance: balance,
+    advance_paid: advance,           // Internal adjusted advance
+    balance: balance,                // Internal balance
     payment_mode: paymentMode,
     sharing_type: data.sharingType,
     special_notes: data.specialNotes || "-",
@@ -258,58 +265,59 @@ if (voucher?.code) {
   try {
     const bookingCode = await insertBookingWithCode(bookingData);
 
-    // ✅ Keep internal team message the same
+    // ✅ Internal confirmation message
     await sendText(from, `✅ Booking confirmed!\n🆔 Booking ID: ${bookingCode}`);
-    // ✅ Send email confirmation
-try {
-  await sendBookingConfirmationEmail(
-    data.clientEmail,
-    bookingCode,
-    {
-      clientName: data.clientName,
-      clientPhone: data.clientPhone,
-      clientEmail: data.clientEmail,
-      trekName: data.trekName,
-      trekDate: data.trekDate,
-      groupSize: groupSize,
-      ratePerPerson: rate,
-      advancePaid: advance,
-      paymentMode: paymentMode,
-      balance: balance,
-      sharingType: data.sharingType,
-      specialNotes: data.specialNotes || "-",
-      voucher: voucher?.code ? { code: voucher.code, amount: voucher.amount } : undefined,
-      senderName: "Admin"
+
+    // ✅ Email confirmation
+    try {
+      await sendBookingConfirmationEmail(
+        data.clientEmail,
+        bookingCode,
+        {
+          clientName: data.clientName,
+          clientPhone: data.clientPhone,
+          clientEmail: data.clientEmail,
+          trekName: data.trekName,
+          trekDate: data.trekDate,
+          groupSize: groupSize,
+          ratePerPerson: rate,
+          advancePaid: advance,
+          paymentMode: paymentMode,
+          balance: balance,
+          sharingType: data.sharingType,
+          specialNotes: data.specialNotes || "-",
+          voucher: voucher?.code ? { code: voucher.code, amount: voucher.amount } : undefined,
+          senderName: "Admin"
+        }
+      );
+    } catch (emailErr) {
+      console.error("❌ Email send failed:", emailErr.message);
     }
-  );
-} catch (emailErr) {
-  console.error("❌ Email send failed:", emailErr.message);
-}
 
-    // ✅ Send template confirmation to client
+    // ✅ WhatsApp template (use adjusted values for client-facing display)
     await sendBookingTemplate(data.clientPhone, [
-      data.clientName,
-      bookingCode,
-      data.trekName,
-      data.trekDate,
-      String(groupSize),
-      String(advance),
-      String(balance)
+      "✅",                         // {{1}} Header emoji
+      data.clientName,             // {{2}} Name
+      bookingCode,                 // {{3}} Booking ID
+      data.trekName,               // {{4}} Adventure Name
+      data.trekDate,               // {{5}} Date
+      String(groupSize),           // {{6}} Total Pax
+      String(adjustedAdvance),     // {{7}} Advance Paid (original + voucher)
+      String(adjustedBalance)      // {{8}} Balance (total - adjustedAdvance)
     ]);
+
     if (voucher?.code) {
-  // ✅ Mark voucher as used
-  await supabase.from("vouchers").update({
-    used: true,
-    used_at: new Date().toISOString(),
-    used_by_booking: bookingCode
-  }).eq("code", voucher.code);
+      // ✅ Mark voucher as used
+      await supabase.from("vouchers").update({
+        used: true,
+        used_at: new Date().toISOString(),
+        used_by_booking: bookingCode
+      }).eq("code", voucher.code);
 
-  // ✅ Send extra WhatsApp messages
-  await sendText(data.clientPhone, `🎟️ Your voucher *${voucher.code}* worth ₹${voucher.amount} has been redeemed for this booking.`);
-
-  await sendText(from, `ℹ️ Voucher *${voucher.code}* (₹${voucher.amount}) was redeemed for this booking and marked as used.`);
-}
-
+      // ✅ Additional voucher messages
+      await sendText(data.clientPhone, `🎟️ Your voucher *${voucher.code}* worth ₹${voucher.amount} has been redeemed for this booking.`);
+      await sendText(from, `ℹ️ Voucher *${voucher.code}* (₹${voucher.amount}) was redeemed for this booking and marked as used.`);
+    }
 
   } catch (error) {
     console.error("❌ Booking insert failed:", error.message);
@@ -320,6 +328,7 @@ try {
   clearBookingVoucher(from);
   return res.sendStatus(200);
 }
+
 
 
 
