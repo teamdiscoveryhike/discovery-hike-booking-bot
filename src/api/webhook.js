@@ -854,7 +854,7 @@ const { adjustedAdvance, adjustedBalance, paymentMode } = getAdjustedPayment({
 💵 *Payment Breakdown:*
 • Actual Advance (Client Paid): ₹${advancePaid}
 • Voucher Value: ₹${voucher.amount}
-• Adjusted Advance (Advance + Voucher): ₹${adjustedAdvance}
+• Adjusted Advance \n(Advance + Voucher): ₹${adjustedAdvance}
 • Adjusted Balance: ₹${adjustedBalance}`;
 }
 
