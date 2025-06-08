@@ -20,6 +20,7 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
   } = data;
 
   const totalAmount = ratePerPerson * groupSize;
+  const cappedVoucherAmount = voucher?.amount && voucher.amount > totalAmount ? totalAmount : voucher?.amount || 0;
   const trekDateObj = new Date(trekDate);
   const day = ("0" + trekDateObj.getDate()).slice(-2);
   const month = ("0" + (trekDateObj.getMonth() + 1)).slice(-2);
@@ -28,12 +29,12 @@ export async function sendBookingConfirmationEmail(to, bookingCode, data) {
 
   const voucherNote = voucher?.code
     ? `<p style="font-size:16px; color:#333333;">
-        🎟️ Voucher <strong>${voucher.code}</strong> was applied worth ₹${voucher.amount}/-.
+       🎟️ Voucher <strong>${voucher.code}</strong> was applied worth ₹${cappedVoucherAmount}/-.
       </p>`
     : "";
 
   const voucherRow = voucher?.code
-    ? `<tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Voucher Applied</td><td style="border:1px solid #dddddd; text-align:center; color:#008000;">₹${voucher.amount}/-</td></tr>`
+    ? `<tr><td style="border:1px solid #dddddd; background-color:#f9f9f9; font-weight:bold;">Voucher Applied</td><td style="border:1px solid #dddddd; text-align:center; color:#008000;">₹${cappedVoucherAmount}/-</td></tr>`
     : "";
 
   const emailHtml = `
