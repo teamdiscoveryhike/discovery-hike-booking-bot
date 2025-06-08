@@ -341,53 +341,52 @@ try {
     const isEditing = isEditingSession(from);
 
     // ✅ TREK DATE OPTIONS
-    if (step === "trekDate") {
-  if (input === "today") {
-    const today = new Date().toISOString().split("T")[0];
-    saveResponse(from, today, !isEditing);
-    if (isEditing) {
-      clearEditingFlag(from);
-      const data = getSessionData(from);
-      await sendSummaryAndConfirm(from, data);
-    } else {
-      await askNextQuestion(from, getCurrentStep(from));
-    }
-    return res.sendStatus(200);
-  } else if (input === "tomorrow") {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const formatted = tomorrow.toISOString().split("T")[0];
-    saveResponse(from, formatted, !isEditing);
-    if (isEditing) {
-      clearEditingFlag(from);
-      const data = getSessionData(from);
-      await sendSummaryAndConfirm(from, data);
-    } else {
-      await askNextQuestion(from, getCurrentStep(from));
-    }
-    return res.sendStatus(200);
-  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    await sendText(from, "📅 Please enter the date in *YYYY-MM-DD* format.");
-    return res.sendStatus(200);
-  } else {
-    const [year, month, day] = input.split("-").map(Number);
-    const currentYear = new Date().getFullYear();
+ let formatted;
+if (input === "today") {
+  formatted = new Date().toISOString().split("T")[0];
+} else if (input === "tomorrow") {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  formatted = tomorrow.toISOString().split("T")[0];
+} else if (!/^\d{2}[./-]\d{2}[./-]\d{4}$/.test(input)) {
+  await sendText(from, "📅 Please enter the date in *DD/MM/YYYY*, *DD-MM-YYYY*, or *DD.MM.YYYY* format. Example: 25/12/2024");
+  return res.sendStatus(200);
+} else {
+  const normalized = input.replace(/[-.]/g, "/");
+  const [day, month, year] = normalized.split("/").map(Number);
+  const currentYear = new Date().getFullYear();
 
-    const isValidDate = (y, m, d) => {
-      const date = new Date(y, m - 1, d);
-      return (
-        date.getFullYear() === y &&
-        date.getMonth() === m - 1 &&
-        date.getDate() === d
-      );
-    };
+  const isValidDate = (y, m, d) => {
+    const date = new Date(y, m - 1, d);
+    return (
+      date.getFullYear() === y &&
+      date.getMonth() === m - 1 &&
+      date.getDate() === d
+    );
+  };
 
-    if (year < currentYear || month > 12 || day > 31 || !isValidDate(year, month, day)) {
-      await sendText(from, "⚠️ Please enter a *valid date* in format YYYY-MM-DD. Example: 2024-12-25");
-      return res.sendStatus(200);
-    }
+  if (year < currentYear || month > 12 || day > 31 || !isValidDate(year, month, day)) {
+    await sendText(from, "⚠️ Please enter a *valid date* in format DD/MM/YYYY. Example: 25/12/2024");
+    return res.sendStatus(200);
   }
+
+  formatted = `${year.toString().padStart(4, "0")}-${month
+    .toString()
+    .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 }
+
+// ✅ Common logic only runs after a valid formatted date is ready
+saveResponse(from, formatted, !isEditing);
+
+if (isEditing) {
+  clearEditingFlag(from);
+  const data = getSessionData(from);
+  await sendSummaryAndConfirm(from, data);
+} else {
+  await askNextQuestion(from, getCurrentStep(from));
+}
+return res.sendStatus(200);
+
 
 
     // ✅ VALIDATIONS
