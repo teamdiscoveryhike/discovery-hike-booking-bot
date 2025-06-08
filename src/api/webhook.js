@@ -326,7 +326,7 @@ const { cappedAdvance, adjustedAdvance, adjustedBalance, paymentMode } = getAdju
       await sendText(from, "⚠️ Session expired. Please type *menu* to start over.");
       return res.sendStatus(200);
     }
-    
+
     const isEditing = isEditingSession(from);
     const voucher = getBookingVoucher(from);
 const session = getSessionObject(from);
@@ -917,14 +917,15 @@ async function insertBookingWithCode(data) {
   throw new Error("❌ Failed to generate a unique booking code.");
 }
 function getAdjustedPayment({ total, advance, voucherAmount }) {
-  const cappedAdvance = Math.min(advance, Math.max(total - voucherAmount, 0));
-  const adjustedAdvance = cappedAdvance + voucherAmount;
+  const cappedVoucher = Math.min(voucherAmount, total); // 🧠 prevent over-credit
+  const cappedAdvance = Math.min(advance, Math.max(total - cappedVoucher, 0));
+  const adjustedAdvance = cappedAdvance + cappedVoucher;
   const adjustedBalance = Math.max(total - adjustedAdvance, 0);
 
   let paymentMode = "Online";
-  if (voucherAmount >= total) {
+  if (cappedVoucher >= total) {
     paymentMode = "Voucher";
-  } else if (voucherAmount > 0) {
+  } else if (cappedVoucher > 0) {
     paymentMode = cappedAdvance > 0 ? "Advance+Voucher" : "Voucher+On-spot";
   }
 
@@ -934,6 +935,8 @@ function getAdjustedPayment({ total, advance, voucherAmount }) {
     adjustedBalance,
     paymentMode
   };
+}
+
 }
 
 export default router;
