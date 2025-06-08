@@ -214,34 +214,14 @@ if (handled) return res.sendStatus(200);
 
   updateCoverageFlag(from, total);
 
-  const originalAdvance = parseInt(data.advancePaid || 0);
-  let advance = originalAdvance;
-  let balance = total - advance;
-  let paymentMode = data.paymentMode;
+ const originalAdvance = parseInt(data.advancePaid || 0);
+const voucherAmount = voucher?.amount || 0;
 
-  if (voucher?.code) {
-    if (voucher.amount >= total) {
-      // Full coverage by voucher
-      advance = 0;
-      balance = 0;
-      paymentMode = "Voucher";
-    } else {
-      // Partial coverage by voucher
-      const maxAdvance = total - voucher.amount;
-      if (advance > maxAdvance) {
-        advance = maxAdvance;
-      }
-      balance = total - voucher.amount - advance;
-      paymentMode = advance > 0 ? "Advance+Voucher" : "Voucher+On-spot";
-    }
-  }
-
-  // ✅ Adjusted values for display (WhatsApp, etc.)
-  let adjustedAdvance = originalAdvance + (voucher?.amount || 0);
-  if (adjustedAdvance > total) {
-    adjustedAdvance = total;
-  }
-  const adjustedBalance = total - adjustedAdvance;
+const { cappedAdvance, adjustedAdvance, adjustedBalance, paymentMode } = getAdjustedPayment({
+  total,
+  advance: originalAdvance,
+  voucherAmount
+});
 
   const bookingData = {
     client_name: data.clientName,
@@ -253,8 +233,8 @@ if (handled) return res.sendStatus(200);
     group_size: groupSize,
     rate_per_person: rate,
     total: total,
-    advance_paid: advance,           // Internal adjusted advance
-    balance: balance,                // Internal balance
+    advance_paid: cappedAdvance,           // Internal adjusted advance
+    balance: total - cappedAdvance - voucherAmount,                // Internal balance
     payment_mode: paymentMode,
     sharing_type: data.sharingType,
     special_notes: data.specialNotes || "-",
@@ -544,10 +524,13 @@ if (voucher?.code && voucher.amount >= total) {
 
   const advance = parseInt(input);
 
-  if (advance > total) {
-    await sendText(from, `⚠️ Advance cannot exceed total (₹${total}). Please re-enter.`);
-    return res.sendStatus(200);
-  }
+  const voucherAmount = voucher?.amount || 0;
+if (advance + voucherAmount > total) {
+  const maxAllowedAdvance = Math.max(total - voucherAmount, 0);
+  await sendText(from, `⚠️ Advance + Voucher exceeds total (₹${total}). Please enter advance ≤ ₹${maxAllowedAdvance}.`);
+  return res.sendStatus(200);
+}
+
 
   // 🛠 Fix: Handle Onspot edge case
   if (session.data.paymentMode === 'onspot') {
@@ -835,31 +818,13 @@ async function sendSummaryAndConfirm(from, data) {
 
   let total = groupSize * ratePerPerson;
   let advancePaid = parseInt(data.advancePaid || 0);
-  let balance = total - advancePaid;
-
+  
   // 🔄 Adjusted logic
-  let adjustedAdvance = advancePaid;
-  let adjustedBalance = balance;
-
-  if (voucher?.code) {
-    if (voucher.amount >= total) {
-      adjustedAdvance = total;
-      adjustedBalance = 0;
-    } else {
-      adjustedAdvance = advancePaid + voucher.amount;
-      adjustedBalance = total - adjustedAdvance;
-    }
-  }
-
-  // 🧠 Payment mode string
-  let displayPaymentMode = data.paymentMode;
-  if (voucher?.code) {
-    if (voucher.amount >= total) {
-      displayPaymentMode = "Voucher";
-    } else {
-      displayPaymentMode = advancePaid > 0 ? "Advance+Voucher" : "Voucher+Onspot";
-    }
-  }
+const { adjustedAdvance, adjustedBalance, paymentMode } = getAdjustedPayment({
+  total,
+  advance: advancePaid,
+  voucherAmount: voucher?.amount || 0
+});
 
   // 📝 Build summary
   let summary = `🧾 *Booking Summary:*
@@ -872,22 +837,27 @@ async function sendSummaryAndConfirm(from, data) {
 • *Group Size:* ${groupSize}
 • *Rate/Person:* ₹${ratePerPerson}
 • *Total:* ₹${total}
-• *Advance Paid:* ₹${advancePaid}
-• *Balance:* ₹${balance}
+• *Advance Paid:* ₹${adjustedAdvance}
+• *Balance:* ₹${adjustedBalance}
 • *Sharing:* ${data.sharingType}
-• *Payment Mode:* ${displayPaymentMode}
+• *Payment Mode:* ${paymentMode}
 • *Notes:* ${data.specialNotes || '-'}`;
 
-  if (voucher?.code) {
-    summary += `
+ if (voucher?.code) {
+  summary += `
 
 🎟️ *Voucher Applied:*
 • Code: ${voucher.code}
 • Amount: ₹${voucher.amount}
 • Covered Fully: ${voucher.amount >= total ? "Yes" : "No"}
+
+💵 *Payment Breakdown:*
+• Actual Advance (Client Paid): ₹${advancePaid}
+• Voucher Value: ₹${voucher.amount}
 • Adjusted Advance (Advance + Voucher): ₹${adjustedAdvance}
 • Adjusted Balance: ₹${adjustedBalance}`;
-  }
+}
+
 
   await sendText(from, summary);
   await sendButtons(from, "✅ Confirm booking?", [
@@ -929,6 +899,25 @@ async function insertBookingWithCode(data) {
     }
   }
   throw new Error("❌ Failed to generate a unique booking code.");
+}
+function getAdjustedPayment({ total, advance, voucherAmount }) {
+  const cappedAdvance = Math.min(advance, Math.max(total - voucherAmount, 0));
+  const adjustedAdvance = cappedAdvance + voucherAmount;
+  const adjustedBalance = Math.max(total - adjustedAdvance, 0);
+
+  let paymentMode = "Online";
+  if (voucherAmount >= total) {
+    paymentMode = "Voucher";
+  } else if (voucherAmount > 0) {
+    paymentMode = cappedAdvance > 0 ? "Advance+Voucher" : "Voucher+On-spot";
+  }
+
+  return {
+    cappedAdvance,
+    adjustedAdvance,
+    adjustedBalance,
+    paymentMode
+  };
 }
 
 export default router;
