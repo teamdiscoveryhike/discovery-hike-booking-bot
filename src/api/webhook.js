@@ -217,28 +217,24 @@ let advance = parseInt(data.advancePaid || 0);
 let balance = total - advance;
 let paymentMode = data.paymentMode;
 
-// 🔁 Voucher adjustment
 if (voucher?.code) {
   if (voucher.amount >= total) {
+    // Full coverage by voucher
     advance = 0;
     balance = 0;
     paymentMode = "Voucher";
   } else {
+    // Partial coverage by voucher
     const maxAdvance = total - voucher.amount;
     if (advance > maxAdvance) {
       advance = maxAdvance;
     }
     balance = total - voucher.amount - advance;
 
-    if (advance > 0) {
-      paymentMode = "Advance+Voucher";
-    } else {
-      paymentMode = "Voucher+On-spot";
-    }
+    paymentMode = advance > 0 ? "Advance+Voucher" : "Voucher+On-spot";
   }
 }
-
-
+ 
 
   const bookingData = {
     client_name: data.clientName,
@@ -324,6 +320,7 @@ try {
   clearBookingVoucher(from);
   return res.sendStatus(200);
 }
+
 
 
 
@@ -830,21 +827,21 @@ async function sendSummaryAndConfirm(from, data) {
   let advancePaid = parseInt(data.advancePaid || 0);
   let balance = total - advancePaid;
 
-  // 🔄 Calculate adjusted advance/balance if voucher exists
+  // 🔄 Adjusted logic
+  let adjustedAdvance = advancePaid;
+  let adjustedBalance = balance;
+
   if (voucher?.code) {
     if (voucher.amount >= total) {
-      advancePaid = 0;
-      balance = 0;
+      adjustedAdvance = total;
+      adjustedBalance = 0;
     } else {
-      const maxAdvance = total - voucher.amount;
-      if (advancePaid > maxAdvance) {
-        advancePaid = maxAdvance;
-      }
-      balance = total - voucher.amount - advancePaid;
+      adjustedAdvance = advancePaid + voucher.amount;
+      adjustedBalance = total - adjustedAdvance;
     }
   }
 
-  // 🧠 Dynamic payment mode string for display
+  // 🧠 Payment mode string
   let displayPaymentMode = data.paymentMode;
   if (voucher?.code) {
     if (voucher.amount >= total) {
@@ -854,6 +851,7 @@ async function sendSummaryAndConfirm(from, data) {
     }
   }
 
+  // 📝 Build summary
   let summary = `🧾 *Booking Summary:*
 • *Client Name:* ${data.clientName}
 • *Phone:* ${data.clientPhone}
@@ -877,8 +875,8 @@ async function sendSummaryAndConfirm(from, data) {
 • Code: ${voucher.code}
 • Amount: ₹${voucher.amount}
 • Covered Fully: ${voucher.amount >= total ? "Yes" : "No"}
-• Adjusted Advance: ₹${advancePaid}
-• Adjusted Balance: ₹${balance}`;
+• Adjusted Advance (Advance + Voucher): ₹${adjustedAdvance}
+• Adjusted Balance: ₹${adjustedBalance}`;
   }
 
   await sendText(from, summary);
@@ -888,6 +886,7 @@ async function sendSummaryAndConfirm(from, data) {
     { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Something" } }
   ]);
 }
+
 
 
 
