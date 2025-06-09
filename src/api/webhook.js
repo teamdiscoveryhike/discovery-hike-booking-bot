@@ -140,16 +140,66 @@ if (handled) return res.sendStatus(200);
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
         await sendButtons(from, " *Discovery Hike Booking Bot*", [
-          { type: "reply", reply: { id: "start_booking", title: "✍️ New Booking" } },
-          { type: "reply", reply: { id: "manual_voucher", title: "🎟️ Manual Voucher" } }
+         { type: "reply", reply: { id: "booking_main", title: "📘 Booking" } },
+         { type: "reply", reply: { id: "services_main", title: "🛠️ Services" } }
         ]);
         return res.sendStatus(200);
       }
-      if (input === "start_booking") {
-        startSession(from);
-        await askNextQuestion(from, getCurrentStep(from));
-        return res.sendStatus(200);
-      }
+      if (input === "booking_main") {
+  await sendButtons(from, "📘 *Booking Options*", [
+    { type: "reply", reply: { id: "booking_new", title: "📄 New Booking" } },
+    { type: "reply", reply: { id: "booking_manage", title: "📁 Manage Booking" } },
+    { type: "reply", reply: { id: "booking_upcoming", title: "📅 View Upcoming" } }
+  ]);
+  return res.sendStatus(200);
+}
+  if (input === "booking_new") {
+  startSession(from);
+  await askNextQuestion(from, getCurrentStep(from));
+  return res.sendStatus(200);
+}
+if (input === "booking_manage") {
+  await sendList(from, "📁 *Manage Booking Options*", [
+    {
+      title: "Manage Actions",
+      rows: [
+        { id: "booking_manage_search", title: "🔍 Search" },
+        { id: "booking_manage_edit", title: "✏️ Edit" },
+        { id: "booking_manage_cancel", title: "❌ Cancel" },
+        { id: "booking_resume", title: "📦 Resume Incomplete" }
+      ]
+    }
+  ]);
+  return res.sendStatus(200);
+}
+
+
+if (input === "booking_upcoming") {
+  await sendButtons(from, "📅 *View Upcoming*", [
+    { type: "reply", reply: { id: "booking_upcoming_batches", title: "📆 Upcoming Batches" } },
+    { type: "reply", reply: { id: "booking_upcoming_actions", title: "⏰ Upcoming Actions" } }
+  ]);
+  return res.sendStatus(200);
+}
+if (input === "services_main") {
+  await sendButtons(from, "🛠️ *Services*", [
+    { type: "reply", reply: { id: "services_voucher", title: "🎟️ Manual Voucher" } },
+    { type: "reply", reply: { id: "services_vehicle", title: "🚐 Vehicle Manager" } }
+  ]);
+  return res.sendStatus(200);
+}
+if (input === "services_voucher") {
+  return await handleVoucherFlow("manual_voucher", from);
+}
+if (input === "services_vehicle") {
+  await sendButtons(from, "🚐 *Vehicle Manager*", [
+    { type: "reply", reply: { id: "services_vehicle_urgent", title: "🚨 Urgent Assignment" } },
+    { type: "reply", reply: { id: "services_vehicle_view", title: "📝 View Assignments" } }
+  ]);
+  return res.sendStatus(200);
+}
+      await sendText(from, "⚠️ No active session. Please type *menu* to start a new booking.");
+      return res.sendStatus(200);
     }
 
     // ✅ PAGINATED EDIT MENU
