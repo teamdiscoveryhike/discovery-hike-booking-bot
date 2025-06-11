@@ -26,6 +26,7 @@ import {
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 import { handleVoucherFlow } from "../handlers/voucherWebhookHandler.js";
+import { handleBookingSearchFlow } from "../handlers/handleBookingSearchFlow.js";
 import { 
   getBookingVoucher, 
   setBookingVoucher, 
@@ -66,7 +67,9 @@ if (["xxx", "kill"].includes(lowerInput)) {
 }
 
 // 🧠 Check if this input is part of the manual voucher flow
-const handled = await handleVoucherFlow(input, from);
+const handled = 
+await handleBookingSearchFlow(input, from) ||
+await handleVoucherFlow(input, from);
 if (handled) return res.sendStatus(200);
 
     
