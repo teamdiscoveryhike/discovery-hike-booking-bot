@@ -37,6 +37,15 @@ function generateOtp() {
 export async function handleVoucherFlow(input, from) {
   const lowerInput = input.toLowerCase();
 //early guard for manual voucher session 
+const now = Date.now(); // 🕒 Get timestamp at the top
+
+  // 🛡️ Prevent repeated WhatsApp retries for `manual_voucher`
+  if (lowerInput === "manual_voucher") {
+    const last = lastTriggerTimestamps.get(from);
+    if (last && now - last < 5000) return true; // ⛔ Ignore if within 5s
+    lastTriggerTimestamps.set(from, now);
+  }
+
   if (input === "manual_voucher" && isVoucherSession(from)) {
   await sendText(from, "⚠️ A voucher session is already running.");
   return true;

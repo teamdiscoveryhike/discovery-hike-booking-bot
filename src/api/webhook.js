@@ -36,7 +36,7 @@ import {
   clearBookingVoucher } from "../services/bookingVoucherContext.js";
 const router = express.Router();
 
-
+const lastVoucherTrigger = new Map();
 router.post("/", async (req, res) => {
   try {
     const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -189,10 +189,18 @@ if (input === "services_main") {
   return res.sendStatus(200);
 }
 if (input === "services_voucher") {
+  const now = Date.now();
+  const last = lastVoucherTrigger.get(from);
+  if (last && now - last < 5000) {
+    return res.sendStatus(200); // Ignore duplicate retry
+  }
+  lastVoucherTrigger.set(from, now);
+
   if (isVoucherSession(from)) {
     await sendText(from, "⚠️ You already have a manual voucher session running.");
     return res.sendStatus(200);
   }
+
   return await handleVoucherFlow("manual_voucher", from);
 }
 
