@@ -20,6 +20,7 @@ import {
 
 import { sendText, sendList, sendButtons } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
+const lastTriggerTimestamps = new Map();
 
 function generateVoucherCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -33,6 +34,7 @@ function generateVoucherCode() {
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
 
 export async function handleVoucherFlow(input, from) {
   const lowerInput = input.toLowerCase();
