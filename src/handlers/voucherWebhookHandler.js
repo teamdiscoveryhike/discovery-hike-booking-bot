@@ -117,6 +117,11 @@ console.log("[VoucherFlow] Received input:", input, "from:", from);
 
   // 🔚 Example end of a flow (search):
   if (type === "search" && step === "lookup") {
+  const ignoredInputs = ["manual_voucher", "services_voucher", "services_main", "hi"];
+  if (ignoredInputs.includes(lowerInput)) {
+    console.log("[VoucherFlow] Ignoring noise input during lookup:", input);
+    return true;
+  } else {
     const isPhone = /^\+\d{10,15}$/.test(input);
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
 
@@ -155,6 +160,8 @@ console.log("[VoucherFlow] Received input:", input, "from:", from);
     endVoucherSession(from);
     return true;
   }
+}
+
 
 
 
