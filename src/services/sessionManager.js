@@ -95,3 +95,8 @@ export function hasCompletedSession(userId) {
   const session = sessions.get(userId);
   return session && session.stepIndex >= steps.length;
 }
+export function setSessionData(userId, newData) {
+  if (!sessions.has(userId)) sessions.set(userId, {});
+  const session = sessions.get(userId);
+  sessions.set(userId, { ...session, ...newData });
+}

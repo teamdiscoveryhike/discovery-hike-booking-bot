@@ -1,5 +1,7 @@
 // services/voucherSessionManager.js
 
+import { setSessionData } from "./sessionManager.js"; // ⬅️ Add at the top if not already
+
 const voucherSessions = {}; // In-memory store
 
 export function startVoucherSession(userId, type = "generate") {
@@ -57,7 +59,13 @@ export function endVoucherSession(userId) {
 
 export function cancelVoucherSession(userId) {
   delete voucherSessions[userId];
+  setSessionData(userId, {
+    manualVoucherStep: null,
+    manualVoucherType: null,
+    killed: true
+  });
 }
+
 export function isSessionExpired(userId, timeoutMinutes = 10) {
   const session = voucherSessions[userId];
   if (!session) return true;

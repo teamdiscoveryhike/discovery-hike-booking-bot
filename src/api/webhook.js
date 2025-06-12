@@ -142,6 +142,7 @@ if (handled) return res.sendStatus(200);
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
+        await setSessionData(from, { killed: false });
         await sendButtons(from, " *Discovery Hike Booking Bot*", [
          { type: "reply", reply: { id: "booking_main", title: "📘 Booking" } },
          { type: "reply", reply: { id: "services_main", title: "🛠️ Services" } }
