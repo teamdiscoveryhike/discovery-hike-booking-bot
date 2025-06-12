@@ -189,8 +189,13 @@ if (input === "services_main") {
   return res.sendStatus(200);
 }
 if (input === "services_voucher") {
+  if (isVoucherSession(from)) {
+    await sendText(from, "⚠️ You already have a manual voucher session running.");
+    return res.sendStatus(200);
+  }
   return await handleVoucherFlow("manual_voucher", from);
 }
+
 if (input === "services_vehicle") {
   await sendButtons(from, "🚐 *Vehicle Manager*", [
     { type: "reply", reply: { id: "services_vehicle_urgent", title: "🚨 Urgent Assignment" } },

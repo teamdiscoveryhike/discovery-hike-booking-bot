@@ -36,6 +36,12 @@ function generateOtp() {
 
 export async function handleVoucherFlow(input, from) {
   const lowerInput = input.toLowerCase();
+//early guard for manual voucher session 
+  if (input === "manual_voucher" && isVoucherSession(from)) {
+  await sendText(from, "⚠️ A voucher session is already running.");
+  return true;
+}
+
 
   if (lowerInput === "manual_voucher") {
     cancelVoucherSession(from);
