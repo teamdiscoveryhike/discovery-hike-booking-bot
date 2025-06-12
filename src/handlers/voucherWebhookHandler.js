@@ -16,6 +16,7 @@ import {
   incrementOtpAttempts, 
   resetOtpAttempts
 } from "../services/voucherSessionManager.js";
+import { getSessionObject } from "../services/sessionManager.js";
 
 import { sendText,sendList,sendButtons } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
