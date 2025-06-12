@@ -19,7 +19,6 @@ import {
 
 import { sendText,sendList,sendButtons } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
-import { getSessionObject, isSessionActive } from "../services/sessionManager.js";
 
 function generateVoucherCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -36,12 +35,7 @@ function generateOtp() {
 
 export async function handleVoucherFlow(input, from) {
   const lowerInput = input.toLowerCase();
- if (isSessionActive(from)) {
-  const session = getSessionObject(from);
-  if (session?.killed) {
-    return false; // Skip voucher flow if session was recently killed
-  }
-}
+
   if (lowerInput === "manual_voucher") {
     cancelVoucherSession(from);
     await sendButtons(from, "🎟️ *Manual Voucher*", [

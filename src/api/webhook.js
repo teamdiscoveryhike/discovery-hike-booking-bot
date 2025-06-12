@@ -12,8 +12,7 @@ import {
   clearEditingFlag,
   getSessionObject,
   setEditPage,
-  getEditPage,
-  setSessionData
+  getEditPage
 } from "../services/sessionManager.js";
 import { sendBookingConfirmationEmail } from "../services/email.js";
 import { cancelVoucherSession } from "../services/voucherSessionManager.js";
@@ -27,7 +26,6 @@ import {
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 import { handleVoucherFlow } from "../handlers/voucherWebhookHandler.js";
-import { handleBookingSearchFlow } from "../handlers/handleBookingSearchFlow.js";
 import { 
   getBookingVoucher, 
   setBookingVoucher, 
@@ -68,9 +66,7 @@ if (["xxx", "kill"].includes(lowerInput)) {
 }
 
 // 🧠 Check if this input is part of the manual voucher flow
-const handled = 
-await handleBookingSearchFlow(input, from) ||
-await handleVoucherFlow(input, from);
+const handled = await handleVoucherFlow(input, from);
 if (handled) return res.sendStatus(200);
 
     
@@ -143,7 +139,6 @@ if (handled) return res.sendStatus(200);
 
     if (!isSessionActive(from)) {
       if (["hi", "hello", "menu"].includes(lowerInput)) {
-        await setSessionData(from, { killed: false });
         await sendButtons(from, " *Discovery Hike Booking Bot*", [
          { type: "reply", reply: { id: "booking_main", title: "📘 Booking" } },
          { type: "reply", reply: { id: "services_main", title: "🛠️ Services" } }
@@ -385,9 +380,8 @@ const { cappedAdvance, adjustedAdvance, adjustedBalance, paymentMode } = getAdju
     const isEditing = isEditingSession(from);
     const voucher = getBookingVoucher(from);
 const session = getSessionObject(from);
-  const data = session?.data || {};
-  const groupSize = parseInt(data.groupSize || 0);
-const rate = parseInt(data.ratePerPerson || 0);
+const groupSize = parseInt(session.data.groupSize || 0);
+const rate = parseInt(session.data.ratePerPerson || 0);
 const total = groupSize * rate;
 
 if (
@@ -560,9 +554,8 @@ if (step === "clientEmail") {
     if (step === "paymentMode") {
 const voucher = getBookingVoucher(from);
 const session = getSessionObject(from);
-  const data = session?.data || {};
-  const groupSize = parseInt(data.groupSize || 0);
-const rate = parseInt(data.ratePerPerson || 0);
+const groupSize = parseInt(session.data.groupSize || 0);
+const rate = parseInt(session.data.ratePerPerson || 0);
 const total = groupSize * rate;
 updateCoverageFlag(from, total);
 
@@ -581,7 +574,7 @@ if (voucher?.code && voucher.amount >= total) {
   const session = getSessionObject(from);
   const voucher = getBookingVoucher(from);
   const groupSize = parseInt(session.data.groupSize || 0);
-  const rate = parseInt(data.ratePerPerson || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
   const total = groupSize * rate;
   updateCoverageFlag(from, total);
 
@@ -664,9 +657,8 @@ if (advance + voucherAmount > total) {
       if (step === "advancePaid") {
         const voucher = getBookingVoucher(from);
 const session = getSessionObject(from);
-  const data = session?.data || {};
-  const groupSize = parseInt(data.groupSize || 0);
-const rate = parseInt(data.ratePerPerson || 0);
+const groupSize = parseInt(session.data.groupSize || 0);
+const rate = parseInt(session.data.ratePerPerson || 0);
 const total = groupSize * rate;
 updateCoverageFlag(from, total);
 
@@ -682,9 +674,8 @@ if (voucher?.code && voucher.amount >= total) {
       const voucher = getBookingVoucher(from);
 if (voucher?.code) {
   const session = getSessionObject(from);
-  const data = session?.data || {};
-  const groupSize = parseInt(data.groupSize || 0);
-  const rate = parseInt(data.ratePerPerson || 0);
+  const groupSize = parseInt(session.data.groupSize || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
   const newTotal = groupSize * rate;
 
   if (voucher.amount >= newTotal) {
@@ -788,7 +779,7 @@ async function askNextQuestion(userId, step) {
   let currentIndex = session.stepIndex;
 
   const groupSize = parseInt(session.data.groupSize || 0);
-  const rate = parseInt(data.ratePerPerson || 0);
+  const rate = parseInt(session.data.ratePerPerson || 0);
   const total = groupSize * rate;
   const voucher = getBookingVoucher(userId);
 
