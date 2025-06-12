@@ -191,19 +191,20 @@ if (input === "services_main") {
 if (input === "services_voucher") {
   const now = Date.now();
   const last = lastVoucherTrigger.get(from);
-  if (last && now - last < 5000) {
-    console.log("[Webhook] Skipping duplicate services_voucher trigger for", from);
-    return res.sendStatus(200); // prevent multiple retriggers
+  if (last && now - last < 7000) {
+    console.log("[Webhook] Ignored duplicate services_voucher for:", from);
+    return res.sendStatus(200);
   }
   lastVoucherTrigger.set(from, now);
 
   if (isVoucherSession(from)) {
-    await sendText(from, "⚠️ A manual voucher session is already running.");
+    console.log("[Webhook] Ignored services_voucher during active voucher session.");
     return res.sendStatus(200);
   }
 
   return await handleVoucherFlow("manual_voucher", from);
 }
+
 
 
 if (input === "services_vehicle") {
