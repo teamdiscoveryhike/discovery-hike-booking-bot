@@ -40,7 +40,7 @@ export async function handleVoucherFlow(input, from) {
   const lowerInput = input.toLowerCase();
 //early guard for manual voucher session 
 const now = Date.now(); // 🕒 Get timestamp at the top
-
+console.log("[VoucherFlow] Received input:", input, "from:", from);
   // 🛡️ Prevent repeated WhatsApp retries for `manual_voucher`
   if (lowerInput === "manual_voucher") {
     const last = lastTriggerTimestamps.get(from);
