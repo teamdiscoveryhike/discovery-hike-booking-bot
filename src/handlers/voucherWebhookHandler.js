@@ -36,12 +36,11 @@ function generateOtp() {
 export async function handleVoucherFlow(input, from) {
   const lowerInput = input.toLowerCase();
  if (isSessionActive(from)) {
-    const session = getSessionObject(from);
-    if (session?.killed) {
-          return false; // Skip voucher flow if session was recently killed
-    }
+  const session = getSessionObject(from);
+  if (session?.killed) {
+    return false; // Skip voucher flow if session was recently killed
   }
-  }
+}
   if (lowerInput === "manual_voucher") {
     cancelVoucherSession(from);
     await sendButtons(from, "🎟️ *Manual Voucher*", [
