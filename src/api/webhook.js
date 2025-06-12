@@ -12,7 +12,9 @@ import {
   clearEditingFlag,
   getSessionObject,
   setEditPage,
-  getEditPage
+  getEditPage,
+  setSessionData
+
 } from "../services/sessionManager.js";
 import { sendBookingConfirmationEmail } from "../services/email.js";
 import { cancelVoucherSession } from "../services/voucherSessionManager.js";
