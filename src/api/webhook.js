@@ -192,17 +192,19 @@ if (input === "services_voucher") {
   const now = Date.now();
   const last = lastVoucherTrigger.get(from);
   if (last && now - last < 5000) {
-    return res.sendStatus(200); // Ignore duplicate retry
+    console.log("[Webhook] Skipping duplicate services_voucher trigger for", from);
+    return res.sendStatus(200); // prevent multiple retriggers
   }
   lastVoucherTrigger.set(from, now);
 
   if (isVoucherSession(from)) {
-    await sendText(from, "⚠️ You already have a manual voucher session running.");
+    await sendText(from, "⚠️ A manual voucher session is already running.");
     return res.sendStatus(200);
   }
 
   return await handleVoucherFlow("manual_voucher", from);
 }
+
 
 if (input === "services_vehicle") {
   await sendButtons(from, "🚐 *Vehicle Manager*", [
