@@ -19,6 +19,7 @@ import {
 
 import { sendText,sendList,sendButtons } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
+import { getSessionObject, isSessionActive } from "../services/sessionManager.js";
 
 function generateVoucherCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
