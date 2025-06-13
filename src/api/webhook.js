@@ -1,15 +1,23 @@
-// src/routes/webhook.js
+// ✅ FINAL: webhook.js with session resume fallback and flowId tracking
 
 import express from "express";
 const router = express.Router();
 
 import { sendText, sendButtons, sendList } from "../services/whatsapp.js";
-import { getSessionObject, isSessionActive, startSession, endSession } from "../services/sessionManager.js";
+import {
+  getSessionObject,
+  isSessionActive,
+  startSession,
+  endSession
+} from "../services/sessionManager.js";
 import { clearBookingVoucher, getBookingVoucher } from "../services/bookingVoucherContext.js";
 import { sendLetterMenu } from "../services/sendLetterMenu.js";
 import { bookingFields } from "../services/bookingFields.js";
 import { resolveFlow } from "../handlers/flowRouter.js";
-import { confirmBooking, askNextQuestion } from "../handlers/bookingMainFlow.js";
+import {
+  confirmBooking,
+  askNextQuestion
+} from "../handlers/bookingMainFlow.js";
 
 router.post("/", async (req, res) => {
   try {
@@ -40,10 +48,17 @@ router.post("/", async (req, res) => {
     }
 
     // 🔌 Plugin-based flow routing (e.g. booking_new, voucher_manual)
-    const handled = await resolveFlow(input)?.(input, from);
-    if (handled) return res.sendStatus(200);
+    const flowHandler = resolveFlow(input);
+    if (flowHandler) {
+      const sessionFlows = ["booking_new"];
+      if (sessionFlows.includes(input) && !isSessionActive(from)) {
+        startSession(from, input); // 🔒 now stores flowId
+      }
+      await flowHandler(input, from);
+      return res.sendStatus(200);
+    }
 
-    // ✅ Booking confirmation (replacing confirm_yes)
+    // ✅ Booking confirmation
     if (lowerInput === "yes") {
       await confirmBooking(from);
       return res.sendStatus(200);
@@ -120,8 +135,6 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-   
-
     // 📁 Manage booking submenu
     if (input === "booking_manage") {
       await sendList(from, "📁 *Manage Booking*", [
@@ -146,7 +159,17 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ❓ Fallback for unknown input
+    // 🔁 Resume flow if session active and flowId known
+    if (isSessionActive(from)) {
+      const session = getSessionObject(from);
+      const handler = resolveFlow(session.flowId);
+      if (handler) {
+        await handler(input, from);
+        return res.sendStatus(200);
+      }
+    }
+
+    // ❓ Fallback
     await sendText(from, "⚠️ I didn’t understand that. Type *menu* to begin.");
     return res.sendStatus(200);
   } catch (err) {
