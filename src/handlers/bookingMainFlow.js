@@ -41,7 +41,7 @@ export async function handleMainBookingFlow(input, from) {
   await askNextQuestion(from);
 }
 
-async function askNextQuestion(from, forceKey = null) {
+export async function askNextQuestion(from, forceKey = null) {
   const session = getSessionObject(from);
   const step = forceKey
     ? bookingFields.find(f => f.key === forceKey)
