@@ -1,5 +1,5 @@
 // services/bookingVoucherContext.js
-
+import supabase from "./supabase.js";
 const bookingVoucherMap = new Map(); // userId → voucher data
 
 export function setBookingVoucher(userId, voucher) {
@@ -38,4 +38,20 @@ export function markVoucherAsSkipped(userId) {
 export function isVoucherSkipped(userId) {
   const entry = bookingVoucherMap.get(userId);
   return entry?.status === "skipped";
+}
+export async function fetchMatchingVoucher(phone, email) {
+  const { data, error } = await supabase
+    .from("vouchers")
+    .select("*")
+    .eq("used", false)
+    .or(`email.eq.${email},phone.eq.${phone}`)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("❌ Failed to fetch voucher:", error.message);
+    return null;
+  }
+
+  return data?.[0] || null;
 }
