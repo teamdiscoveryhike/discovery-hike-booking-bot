@@ -82,7 +82,6 @@ router.post("/", async (req, res) => {
     if (input === "booking_main") {
       await sendButtons(from, "📘 *Booking Menu*", [
         { type: "reply", reply: { id: "booking_new", title: "📄 New Booking" } },
-        { type: "reply", reply: { id: "edit_booking", title: "✏️ Edit Booking" } },
         { type: "reply", reply: { id: "booking_manage", title: "📁 Manage Booking" } },
         { type: "reply", reply: { id: "view_upcoming", title: "📅 View Upcoming" } }
       ]);
@@ -99,7 +98,7 @@ router.post("/", async (req, res) => {
     }
 
     // ✏️ Edit booking letter-based menu
-    if (input === "edit_booking") {
+    if (input === "edit") {
       const session = getSessionObject(from);
       const data = session.data || {};
       const voucher = session.voucher;
@@ -121,11 +120,7 @@ router.post("/", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // 📦 Resume booking placeholder
-    if (input === "booking_resume") {
-      await sendText(from, "🔄 Resume logic not implemented yet.");
-      return res.sendStatus(200);
-    }
+   
 
     // 📁 Manage booking submenu
     if (input === "booking_manage") {
