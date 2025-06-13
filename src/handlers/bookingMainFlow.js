@@ -12,27 +12,36 @@ export async function handleMainBookingFlow(input, from) {
   let session;
   try {
     session = getSessionObject(from);
-  } catch {
-    startSession(from);
+  } catch (e) {
+    // No session found, start and ask
+    startSession(from, "booking_new");
     return await askNextQuestion(from);
   }
 
   const currentStep = bookingFields[session.stepIndex];
-  if (!currentStep) return;
 
+  // If no step yet (first time), ask immediately
+  if (!currentStep) {
+    return await askNextQuestion(from);
+  }
+
+  // Save the response for the current step
   const cleanedInput = input?.trim();
   const key = currentStep.key;
   session.data[key] = cleanedInput;
 
+  // Validation
   const validationError = await validateField(key, cleanedInput, from);
   if (validationError) return;
 
+  // Next step
   session.stepIndex++;
 
   if (key === "advancePaid") {
     await tryApplyVoucher(session);
   }
 
+  // Done?
   if (session.stepIndex >= bookingFields.length) {
     await sendSummaryAndConfirm(from);
     return;
@@ -40,6 +49,7 @@ export async function handleMainBookingFlow(input, from) {
 
   await askNextQuestion(from);
 }
+
 
 export async function askNextQuestion(from, forceKey = null) {
   const session = getSessionObject(from);
