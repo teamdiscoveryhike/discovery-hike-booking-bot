@@ -21,7 +21,8 @@ import {
   sendText,
   sendButtons,
   sendList,
-  checkWhatsappNumber
+  checkWhatsappNumber,
+  sendBookingTemplate
 } from "../services/whatsapp.js";
 import supabase from "../services/supabase.js";
 import { handleVoucherFlow } from "../handlers/voucherWebhookHandler.js";
