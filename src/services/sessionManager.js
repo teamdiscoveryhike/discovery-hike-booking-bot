@@ -1,3 +1,5 @@
+// ✅ STEP 1: Update sessionManager.js to support pagination state
+
 const sessions = new Map();
 
 const steps = [
@@ -15,19 +17,12 @@ const steps = [
   "specialNotes"
 ];
 
-// 🆕 Modified to include flowId
-export function startSession(userId, flowId = null) {
-  sessions.set(userId, {
-    stepIndex: 0,
-    data: {},
-    editing: false,
-    editPage: 0,
-    flowId // 🔐 Track which flow this session belongs to
-  });
+export function startSession(userId) {
+  sessions.set(userId, { stepIndex: 0, data: {}, editing: false, editPage: 0 });
   return steps[0];
 }
 
-// 🔄 Pagination management (used in edit menus)
+// 🔄 Add pagination state management for edit list
 export function setEditPage(userId, page = 0) {
   const session = sessions.get(userId);
   if (session) session.editPage = page;
